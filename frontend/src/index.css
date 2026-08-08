@@ -1,0 +1,180 @@
+:root {
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #dfe7f0;
+  --text: #475569;
+  --text-strong: #0f172a;
+  --primary: #2563eb;
+  --primary-2: #0f172a;
+  --accent: #16a34a;
+  --warning: #d97706;
+  --shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  --layout-bg: #f4f7fb;
+  --layout-bg-grad: linear-gradient(180deg, #f4f7fb 0%, #eef3f9 100%);
+  --navbar-bg: rgba(255, 255, 255, 0.95);
+  --navbar-border: #dfe7f0;
+  --navbar-muted: #64748b;
+  --sidebar-bg: linear-gradient(180deg, #07111f 0%, #0f172a 100%);
+  --sidebar-brand: #7dd3fc;
+  --sidebar-text: #cbd5e1;
+  --sidebar-title: #ffffff;
+  --sidebar-meta: #94a3b8;
+  --sidebar-active-bg: rgba(37, 99, 235, 0.22);
+  --sidebar-active-border: rgba(125, 211, 252, 0.25);
+  --sidebar-box-bg: rgba(255, 255, 255, 0.06);
+  --radius: 18px;
+  font-family: Inter, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body[data-theme='dark'] {
+  --bg: #0b1220;
+  --surface: #0f172a;
+  --surface-2: #162033;
+  --border: #24344d;
+  --text: #cbd5e1;
+  --text-strong: #f8fafc;
+  --primary: #60a5fa;
+  --primary-2: #dbeafe;
+  --accent: #22c55e;
+  --warning: #f59e0b;
+  --layout-bg: #0b1220;
+  --layout-bg-grad: linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
+  --navbar-bg: rgba(15, 23, 42, 0.9);
+  --navbar-border: #24344d;
+  --navbar-muted: #94a3b8;
+  --sidebar-bg: linear-gradient(180deg, #020617 0%, #0b1220 100%);
+  --sidebar-brand: #38bdf8;
+  --sidebar-text: #cbd5e1;
+  --sidebar-title: #f8fafc;
+  --sidebar-meta: #94a3b8;
+  --sidebar-active-bg: rgba(96, 165, 250, 0.24);
+  --sidebar-active-border: rgba(147, 197, 253, 0.35);
+  --sidebar-box-bg: rgba(148, 163, 184, 0.12);
+}
+
+body[data-theme='ocean'] {
+  --bg: #ecfeff;
+  --surface: #ffffff;
+  --surface-2: #f0fdfa;
+  --border: #bae6fd;
+  --text: #164e63;
+  --text-strong: #082f49;
+  --primary: #0ea5e9;
+  --primary-2: #0369a1;
+  --accent: #0d9488;
+  --warning: #ea580c;
+  --layout-bg: #ecfeff;
+  --layout-bg-grad: linear-gradient(180deg, #ecfeff 0%, #dff7fb 100%);
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  --navbar-border: #bae6fd;
+  --navbar-muted: #155e75;
+  --sidebar-bg: linear-gradient(180deg, #0c4a6e 0%, #075985 100%);
+  --sidebar-brand: #67e8f9;
+  --sidebar-text: #cffafe;
+  --sidebar-title: #ffffff;
+  --sidebar-meta: #a5f3fc;
+  --sidebar-active-bg: rgba(103, 232, 249, 0.2);
+  --sidebar-active-border: rgba(165, 243, 252, 0.45);
+  --sidebar-box-bg: rgba(224, 242, 254, 0.14);
+}
+
+body[data-theme='corporate'] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #cbd5e1;
+  --text: #334155;
+  --text-strong: #0f172a;
+  --primary: #1d4ed8;
+  --primary-2: #0f172a;
+  --accent: #15803d;
+  --warning: #b45309;
+  --layout-bg: #f8fafc;
+  --layout-bg-grad: linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%);
+  --navbar-bg: rgba(255, 255, 255, 0.95);
+  --navbar-border: #cbd5e1;
+  --navbar-muted: #475569;
+  --sidebar-bg: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+  --sidebar-brand: #93c5fd;
+  --sidebar-text: #e2e8f0;
+  --sidebar-title: #ffffff;
+  --sidebar-meta: #cbd5e1;
+  --sidebar-active-bg: rgba(59, 130, 246, 0.24);
+  --sidebar-active-border: rgba(147, 197, 253, 0.42);
+  --sidebar-box-bg: rgba(241, 245, 249, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--layout-bg) 0%, var(--bg) 100%);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, p {
+  margin: 0;
+}
+
+h1, h2, h3, h4 {
+  color: var(--text-strong);
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button {
+  border: none;
+  cursor: pointer;
+}
+
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text-strong);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.15);
+  border-color: var(--primary);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}

@@ -1,0 +1,2 @@
+CREATE DATABASE IF NOT EXISTS akn_erp;
+USE akn_erp;
