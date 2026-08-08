@@ -7,6 +7,8 @@ const AccountTransaction = require("../models/AccountTransaction");
 const Account = require("../models/Account");
 const Invoice = require("../models/lnvoice");
 const Product = require("../models/Product");
+const User = require("../models/User");
+const ActivityLog = require("../models/ActivityLog");
 
 // 1. Yeni Satış / Sepet Tamamlama İşlemi
 exports.createSale = async (req, res) => {
@@ -26,8 +28,28 @@ exports.createSale = async (req, res) => {
       paidAmount,
       notes,
       vatRate,
+      customerDiscountRate,
+      repDiscountRate,
     } = req.body;
     const companyId = req.user?.companyId || req.user?.company || new mongoose.Types.ObjectId();
+    const userId = req.user?.id || req.user?._id;
+
+    // İskonto yetki kontrolü (sales rolü için)
+    const dbUser = userId ? await User.findById(userId).select('role maxDiscountRate discountAllowedPaymentTypes name').lean() : null;
+    const userRole = dbUser?.role || req.user?.role;
+    const normalizedRepRate = Number(repDiscountRate || 0);
+    const normalizedCustRate = Number(customerDiscountRate || 0);
+
+    if (userRole === 'sales' && normalizedRepRate > 0) {
+      const maxRate = dbUser?.maxDiscountRate ?? 3;
+      if (normalizedRepRate > maxRate) {
+        return res.status(403).json({ success: false, message: `Bu kullanıcı maksimum %${maxRate} temsilci iskontosu uygulayabilir.` });
+      }
+      const allowedTypes = dbUser?.discountAllowedPaymentTypes?.length ? dbUser.discountAllowedPaymentTypes : ['NAKIT'];
+      if (!allowedTypes.includes(paymentType)) {
+        return res.status(403).json({ success: false, message: `Temsilci iskontosu yalnızca ${allowedTypes.join(', ')} ödemelerinde geçerlidir.` });
+      }
+    }
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: "Sepette ürün bulunmuyor." });
@@ -123,6 +145,30 @@ exports.createSale = async (req, res) => {
     });
 
     await newSale.save();
+
+    // İskonto audit logu
+    if (normalizedCustRate > 0 || normalizedRepRate > 0) {
+      await ActivityLog.create({
+        companyId,
+        userId,
+        module: 'sale',
+        action: 'DISCOUNT_APPLIED',
+        entityType: 'Sale',
+        entityId: newSale._id,
+        meta: {
+          saleId: newSale._id,
+          customerId: normalizedCustomerId,
+          customerName: customer?.companyName || customer?.name || '',
+          userName: dbUser?.name || '',
+          customerDiscountRate: normalizedCustRate,
+          repDiscountRate: normalizedRepRate,
+          discountAmount: normalizedDiscount,
+          paymentType,
+          totalAmount,
+          date: new Date(),
+        },
+      });
+    }
 
     if (customer) {
       await customer.save();

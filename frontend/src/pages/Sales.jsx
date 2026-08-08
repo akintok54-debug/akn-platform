@@ -6,18 +6,25 @@ const Sales = () => {
   const [searchParams] = useSearchParams();
   const presetCustomerId = searchParams.get('customerId') || '';
   const presetCustomerName = searchParams.get('customerName') || '';
+
+  const currentUser = useMemo(() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } }, []);
+  const isSalesRole = currentUser?.role === 'sales';
+  const userMaxDiscount = Number(currentUser?.maxDiscountRate ?? 3);
+
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [sales, setSales] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(presetCustomerId);
   const [selectedCustomerName, setSelectedCustomerName] = useState(presetCustomerName);
+  const [selectedCustomerDiscountRate, setSelectedCustomerDiscountRate] = useState(0);
+  const [customerDiscountApplied, setCustomerDiscountApplied] = useState(false);
+  const [repDiscountRate, setRepDiscountRate] = useState(0);
   const [paymentType, setPaymentType] = useState('NAKIT');
   const [paymentStatus, setPaymentStatus] = useState('ODENDI');
   const [deliveryStatus, setDeliveryStatus] = useState('BEKLEMEDE');
   const [orderNumber, setOrderNumber] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
   const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 10));
-  const [discount, setDiscount] = useState(0);
   const [vatRate, setVatRate] = useState(20);
   const [paidAmount, setPaidAmount] = useState(0);
   const [notes, setNotes] = useState('');
@@ -50,6 +57,14 @@ const Sales = () => {
     fetchData();
   }, []);
 
+  // Müşteri seçilince discountRate'i güncelle
+  useEffect(() => {
+    if (!selectedCustomerId || customers.length === 0) return;
+    const c = customers.find((c) => (c._id || c.id) === selectedCustomerId);
+    setSelectedCustomerDiscountRate(Number(c?.discountRate || 0));
+    setCustomerDiscountApplied(false);
+  }, [selectedCustomerId, customers]);
+
   const addToCart = (product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product._id || item.productId === product.id);
@@ -66,8 +81,11 @@ const Sales = () => {
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0), [cart]);
   const vatAmount = useMemo(() => Number((subtotal * (Number(vatRate || 0) / 100)).toFixed(2)), [subtotal, vatRate]);
-  const discountAmount = useMemo(() => Number(discount || 0), [discount]);
-  const grandTotal = useMemo(() => Number((subtotal + vatAmount - discountAmount).toFixed(2)), [subtotal, vatAmount, discountAmount]);
+  const appliedCustomerDiscountRate = customerDiscountApplied ? selectedCustomerDiscountRate : 0;
+  const customerDiscountAmount = useMemo(() => Number((subtotal * appliedCustomerDiscountRate / 100).toFixed(2)), [subtotal, appliedCustomerDiscountRate]);
+  const repDiscountAmount = useMemo(() => Number((subtotal * Number(repDiscountRate || 0) / 100).toFixed(2)), [subtotal, repDiscountRate]);
+  const totalDiscountAmount = useMemo(() => Number((customerDiscountAmount + repDiscountAmount).toFixed(2)), [customerDiscountAmount, repDiscountAmount]);
+  const grandTotal = useMemo(() => Number(Math.max(0, subtotal + vatAmount - totalDiscountAmount).toFixed(2)), [subtotal, vatAmount, totalDiscountAmount]);
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase();
     return products.filter((product) => {
@@ -99,7 +117,9 @@ const Sales = () => {
         orderNumber,
         referenceNo,
         saleDate,
-        discount: Number(discount || 0),
+        discount: totalDiscountAmount,
+        customerDiscountRate: appliedCustomerDiscountRate,
+        repDiscountRate: Number(repDiscountRate || 0),
         paidAmount: Number(paidAmount || 0),
         notes,
         vatRate: Number(vatRate || 0),
@@ -108,6 +128,9 @@ const Sales = () => {
       setCart([]);
       setSelectedCustomerId('');
       setSelectedCustomerName('');
+      setSelectedCustomerDiscountRate(0);
+      setCustomerDiscountApplied(false);
+      setRepDiscountRate(0);
       setPaymentType('NAKIT');
       setPaymentStatus('ODENDI');
       setDeliveryStatus('BEKLEMEDE');
@@ -253,9 +276,44 @@ const Sales = () => {
               </select>
             </label>
 
+            {/* Müşteri iskontosu uyarısı */}
+            {selectedCustomerDiscountRate > 0 && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
+                  ⚠️ Bu müşterinin %{selectedCustomerDiscountRate} tanımlı iskontosu var.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomerDiscountApplied((v) => !v)}
+                  style={{ marginTop: 6, padding: '5px 10px', background: customerDiscountApplied ? '#dc2626' : '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}
+                >
+                  {customerDiscountApplied ? '✕ İskontoyu Kaldır' : `✓ İskontoyu Uygula (%${selectedCustomerDiscountRate})`}
+                </button>
+                {customerDiscountApplied && (
+                  <div style={{ color: '#15803d', fontSize: 12, marginTop: 4 }}>
+                    Müşteri İskontosu: -{customerDiscountAmount.toLocaleString('tr-TR')} TL
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Temsilci nakit iskontosu */}
             <label>
-              İskonto (TL)
-              <input type="number" min="0" value={discount} onChange={(e) => setDiscount(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Temsilci Nakit İskontosu (%)</span>
+                <span style={{ fontSize: 11, color: '#6b7280' }}>Maks: %{userMaxDiscount}</span>
+              </div>
+              <input
+                type="number" min="0" max={userMaxDiscount} step="0.5"
+                disabled={paymentType !== 'NAKIT'}
+                value={repDiscountRate}
+                onChange={(e) => setRepDiscountRate(Math.min(userMaxDiscount, Math.max(0, Number(e.target.value))))}
+                style={{ width: '100%', padding: 8, marginTop: 4, background: paymentType !== 'NAKIT' ? '#f3f4f6' : '#fff', color: paymentType !== 'NAKIT' ? '#9ca3af' : '#111' }}
+              />
+              {paymentType !== 'NAKIT' && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Yalnızca nakit satışlarda aktif</div>}
+              {repDiscountRate > 0 && paymentType === 'NAKIT' && (
+                <div style={{ fontSize: 12, color: '#2563eb', marginTop: 3 }}>Temsilci İskontosu: -{repDiscountAmount.toLocaleString('tr-TR')} TL</div>
+              )}
             </label>
 
             <label>
@@ -295,10 +353,19 @@ const Sales = () => {
           )}
 
           <div style={{ marginTop: 16, borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ara Toplam</span><strong>{subtotal} TL</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}><span>KDV</span><strong>{vatAmount} TL</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}><span>İskonto</span><strong>{discountAmount} TL</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 18, fontWeight: 700 }}><span>Genel Toplam</span><span>{grandTotal} TL</span></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Ara Toplam</span><strong>{subtotal.toLocaleString('tr-TR')} TL</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}><span>KDV (%{vatRate})</span><strong>{vatAmount.toLocaleString('tr-TR')} TL</strong></div>
+            {customerDiscountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, color: '#dc2626' }}>
+                <span>Müşteri İskontosu (%{selectedCustomerDiscountRate})</span><strong>-{customerDiscountAmount.toLocaleString('tr-TR')} TL</strong>
+              </div>
+            )}
+            {repDiscountAmount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, color: '#2563eb' }}>
+                <span>Temsilci İskontosu (%{repDiscountRate})</span><strong>-{repDiscountAmount.toLocaleString('tr-TR')} TL</strong>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 18, fontWeight: 700 }}><span>Genel Toplam</span><span>{grandTotal.toLocaleString('tr-TR')} TL</span></div>
           </div>
 
           <button onClick={handleSaveSale} disabled={saving} style={{ marginTop: 12, width: '100%', padding: '10px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer' }}>

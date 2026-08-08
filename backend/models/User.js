@@ -54,6 +54,16 @@ const userSchema = new mongoose.Schema(
       ref: 'PermissionProfile',
       default: null,
     },
+    maxDiscountRate: {
+      type: Number,
+      default: 3,
+      min: 0,
+      max: 100,
+    },
+    discountAllowedPaymentTypes: {
+      type: [String],
+      default: ['NAKIT'],
+    },
   },
   {
     timestamps: true,

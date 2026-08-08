@@ -2,6 +2,17 @@ const Product = require("../models/Product");
 
 const getCompanyId = (req) => req.user?.company || req.user?.companyId || null;
 
+// Satış temsilcisine gizlenecek maliyet alanları
+const COST_FIELDS = ['purchasePrice', 'oemCode'];
+
+const stripCostFields = (product) => {
+  const p = { ...product };
+  COST_FIELDS.forEach((f) => delete p[f]);
+  return p;
+};
+
+const isSalesRole = (req) => req.user?.role === 'sales';
+
 // Yeni ürün oluştur
 const createProduct = async (req, res) => {
   try {
@@ -34,11 +45,12 @@ const getProducts = async (req, res) => {
     const companyId = getCompanyId(req);
     const filter = companyId ? { company: companyId } : {};
     const products = await Product.find(filter).sort({ createdAt: -1 }).lean();
+    const data = isSalesRole(req) ? products.map(stripCostFields) : products;
 
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products,
+      count: data.length,
+      data,
     });
   } catch (error) {
     res.status(500).json({
