@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
 const Sales = () => {
+  const [searchParams] = useSearchParams();
+  const presetCustomerId = searchParams.get('customerId') || '';
+  const presetCustomerName = searchParams.get('customerName') || '';
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [sales, setSales] = useState([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(presetCustomerId);
+  const [selectedCustomerName, setSelectedCustomerName] = useState(presetCustomerName);
   const [paymentType, setPaymentType] = useState('NAKIT');
   const [paymentStatus, setPaymentStatus] = useState('ODENDI');
   const [deliveryStatus, setDeliveryStatus] = useState('BEKLEMEDE');
@@ -102,6 +107,7 @@ const Sales = () => {
       });
       setCart([]);
       setSelectedCustomerId('');
+      setSelectedCustomerName('');
       setPaymentType('NAKIT');
       setPaymentStatus('ODENDI');
       setDeliveryStatus('BEKLEMEDE');
@@ -181,12 +187,26 @@ const Sales = () => {
           <div style={{ display: 'grid', gap: 8 }}>
             <label>
               Müşteri
-              <select value={selectedCustomerId} onChange={(e) => setSelectedCustomerId(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }}>
-                <option value="">Seçiniz</option>
-                {customers.map((customer) => (
-                  <option key={customer._id || customer.id} value={customer._id || customer.id}>{customer.companyName || customer.name}</option>
-                ))}
-              </select>
+              {presetCustomerId && selectedCustomerId === presetCustomerId ? (
+                <div style={{ marginTop: 4, padding: '8px 12px', background: '#ecfdf5', border: '1px solid #16a34a', borderRadius: 8, color: '#15803d', fontWeight: 600, fontSize: 14 }}>
+                  ✓ {selectedCustomerName || presetCustomerName}
+                </div>
+              ) : (
+                <select
+                  value={selectedCustomerId}
+                  onChange={(e) => {
+                    setSelectedCustomerId(e.target.value);
+                    const c = customers.find(c => (c._id || c.id) === e.target.value);
+                    setSelectedCustomerName(c ? (c.companyName || c.name || '') : '');
+                  }}
+                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                >
+                  <option value="">Seçiniz</option>
+                  {customers.map((customer) => (
+                    <option key={customer._id || customer.id} value={customer._id || customer.id}>{customer.companyName || customer.name}</option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <label>

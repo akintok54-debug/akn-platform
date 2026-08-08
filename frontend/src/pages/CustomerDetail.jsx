@@ -386,6 +386,12 @@ const CustomerDetail = () => {
       </div>
 
       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <button
+          style={{ ...actionButtonStyle, background: '#16a34a', color: '#fff', fontWeight: 700 }}
+          onClick={() => navigate(`/sales?customerId=${id}&customerName=${encodeURIComponent(customer.companyName || customer.name || '')}`)}
+        >
+          🛒 Satış Yap
+        </button>
         <button style={actionButtonStyle} onClick={openPortal}>🔗 Bayi Portalı</button>
         <button style={actionButtonStyle} onClick={copyPortalLink}>📋 Linki Kopyala</button>
         <button style={actionButtonStyle} onClick={handleStatementPdf}>📄 Hesap Ekstresi</button>
