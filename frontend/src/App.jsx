@@ -28,6 +28,8 @@ import CollectionsReport from "./pages/CollectionsReport";
 import ReturnsReport from "./pages/ReturnsReport";
 import ProductsReport from "./pages/ProductsReport";
 import AuditReport from "./pages/AuditReport";
+import SalesRepReport from "./pages/SalesRepReport";
+import ReportsHub from "./pages/ReportsHub";
 import DealerLogin from "./pages/DealerLogin";
 import DealerPortal from "./pages/DealerPortal";
 import DealerSelfServicePortal from "./pages/DealerSelfServicePortal";
@@ -107,7 +109,7 @@ function App() {
         <Route path="/sales" element={<ProtectedRoute moduleName="sales" element={<Sales />} />} />
         <Route path="/accounting" element={<ProtectedRoute moduleName="accounting" element={<Accounting />} />} />
         <Route path="/invoices/create" element={<ProtectedRoute moduleName="invoices" element={<InvoiceCreate />} />} />
-        <Route path="/reports" element={<ProtectedRoute moduleName="reports" element={<Reports />} />} />
+        <Route path="/reports" element={<ProtectedRoute moduleName="reports" element={<ReportsHub />} />} />
         <Route path="/reports/sales" element={<ProtectedRoute moduleName="reports" element={<SalesReport />} />} />
         <Route path="/reports/customers" element={<ProtectedRoute moduleName="reports" element={<CustomersReport />} />} />
         <Route path="/reports/orders" element={<ProtectedRoute moduleName="reports" element={<OrdersReport />} />} />
@@ -116,6 +118,7 @@ function App() {
         <Route path="/reports/returns" element={<ProtectedRoute moduleName="reports" element={<ReturnsReport />} />} />
         <Route path="/reports/products" element={<ProtectedRoute moduleName="reports" element={<ProductsReport />} />} />
         <Route path="/reports/audit" element={<ProtectedRoute moduleName="reports" element={<AuditReport />} />} />
+        <Route path="/reports/sales-reps" element={<ProtectedRoute moduleName="reports" element={<SalesRepReport />} />} />
         <Route path="/imports" element={<ProtectedRoute moduleName="reports" element={<ImportCenter />} />} />
         <Route path="/daily-sales" element={<ProtectedRoute moduleName="reports" element={<DailySales />} />} />
 
