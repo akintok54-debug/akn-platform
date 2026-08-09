@@ -148,8 +148,20 @@ function Dashboard() {
   return (
     <Layout>
       <div style={{ background: "linear-gradient(135deg, #07111f 0%, #17324e 100%)", color: "#fff", padding: 24, borderRadius: 24, marginBottom: 20, boxShadow: "0 18px 40px rgba(7, 17, 31, 0.16)" }}>
-        <h1 style={{ margin: "8px 0 8px", fontSize: 30 }}>Hoş geldiniz, {user.name || "Kullanıcı"}</h1>
-        <p style={{ margin: 0, opacity: 0.95, maxWidth: 700 }}>Satış, stok, cari hesap ve rapor akışlarını aynı anda takip ederek kurumsal operasyonları daha hızlı ve daha net yönetin.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 style={{ margin: "8px 0 8px", fontSize: 30 }}>Hoş geldiniz, {user.name || "Kullanıcı"}</h1>
+            <p style={{ margin: 0, opacity: 0.95, maxWidth: 700 }}>Satış, stok, cari hesap ve rapor akışlarını aynı anda takip ederek kurumsal operasyonları daha hızlı ve daha net yönetin.</p>
+          </div>
+          <div style={{ textAlign: 'right', opacity: 0.9, fontSize: 11 }}>
+            <div style={{ fontStyle: 'italic', marginBottom: 4 }}>Powered by</div>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '2px', marginBottom: 6 }}>BAHADIR AKIN</div>
+            <svg width="120" height="40" viewBox="0 0 120 40" style={{ margin: 0 }}>
+              <path d="M 10 20 Q 30 10 50 20 T 90 20" stroke="currentColor" fill="none" strokeWidth="1.5" opacity="0.6" />
+              <text x="60" y="28" fontSize="9" fill="currentColor" textAnchor="middle" opacity="0.7" fontStyle="italic">© Enterprise</text>
+            </svg>
+          </div>
+        </div>
 
         <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
           <label style={{ fontSize: 14, color: "#e2e8f0" }}>Dönem:</label>

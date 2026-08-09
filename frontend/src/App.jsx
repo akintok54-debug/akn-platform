@@ -18,8 +18,9 @@ import Bank from "./pages/Bank";
 import CurrentAccounts from "./pages/CurrentAccounts";
 import Sales from "./pages/Sales";
 import Accounting from "./pages/Accounting";
+import AccountingDashboard from "./pages/AccountingDashboard";
 import InvoiceCreate from "./pages/InvoiceCreate";
-import Reports from "./pages/Reports";
+import InvoiceView from "./pages/InvoiceView";
 import DailySales from "./pages/DailySales";
 import ImportCenter from "./pages/ImportCenter";
 import SalesReport from "./pages/SalesReport";
@@ -125,8 +126,10 @@ function App() {
         <Route path="/bank" element={<ProtectedRoute moduleName="accounting" element={<Bank />} />} />
         <Route path="/current-accounts" element={<ProtectedRoute moduleName="accounting" element={<CurrentAccounts />} />} />
         <Route path="/sales" element={<ProtectedRoute moduleName="sales" element={<Sales />} />} />
-        <Route path="/accounting" element={<ProtectedRoute moduleName="accounting" element={<Accounting />} />} />
+        <Route path="/accounting" element={<ProtectedRoute moduleName="accounting" element={<AccountingDashboard />} />} />
+        <Route path="/invoices" element={<ProtectedRoute moduleName="invoices" element={<Accounting />} />} />
         <Route path="/invoices/create" element={<ProtectedRoute moduleName="invoices" element={<InvoiceCreate />} />} />
+        <Route path="/invoices/:id" element={<ProtectedRoute moduleName="invoices" element={<InvoiceView />} />} />
         <Route path="/reports" element={<ProtectedRoute moduleName="reports" element={<ReportsHub />} />} />
         <Route path="/reports/sales" element={<ProtectedRoute moduleName="reports" element={<SalesReport />} />} />
         <Route path="/reports/customers" element={<ProtectedRoute moduleName="reports" element={<CustomersReport />} />} />

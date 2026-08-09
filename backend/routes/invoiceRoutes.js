@@ -3,16 +3,28 @@ const router = express.Router();
 const {
   createInvoice,
   getInvoices,
+  getInvoiceById,
+  recordPayment,
+  cancelInvoice,
   sendInvoiceToGIB,
+  getAccountingReport,
 } = require("../controllers/invoiceController");
-const { verifyToken } = require("../middleware/authMiddleware"); // Mevcut oturum doğrulama middleware'in
+const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
 
-// Tüm fatura rotaları için kimlik doğrulama zorunlu
+// Tüm rotaları koru
 router.use(verifyToken);
 
-// Rotalar
-router.post("/", createInvoice);                // Satıştan veya manuel olarak yeni E-Fatura/E-Arşiv taslağı oluştur
-router.get("/", getInvoices);                   // Firmaya ait tüm faturaları listele
-router.post("/send/:id", sendInvoiceToGIB);     // Taslak faturayı GİB entegratörüne gönder ve onayla
+// FATURA İŞLEMLERİ
+router.post("/", createInvoice); // Fatura oluştur
+router.get("/", getInvoices); // Tüm faturaları listele (filtre destekli)
+router.get("/:id", getInvoiceById); // Fatura detay & ödemeler
+router.post("/:id/cancel", cancelInvoice); // Fatura iptal et
+router.post("/:invoiceId/payment", recordPayment); // Ödeme kaydet
+
+// GİB ENTEGRASYONU
+router.post("/:id/send-to-gib", sendInvoiceToGIB); // GİB'e gönder
+
+// RAPORLAR
+router.get("/reports/accounting", getAccountingReport); // Muhasebe raporu
 
 module.exports = router;
