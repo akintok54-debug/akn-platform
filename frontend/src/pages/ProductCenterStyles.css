@@ -1,0 +1,199 @@
+/* ─── Ürün Merkezi Stilleri ─────────────────────────────────────────────────── */
+
+.products-center-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #f5f5f5;
+  font-family: inherit;
+}
+
+/* Header */
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* İstatistik Kartları */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  border-left: 4px solid #3b82f6;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* İşlem Butonları */
+.action-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.action-buttons-grid button {
+  transition: all 0.2s ease;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.action-buttons-grid button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.action-buttons-grid button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Filtreler */
+.filters-section {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filters-section input,
+.filters-section select {
+  box-sizing: border-box;
+}
+
+/* Tablo */
+.table-responsive {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.products-table thead th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #1f2937;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.products-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background 0.1s;
+}
+
+.products-table tbody tr:hover {
+  background: #f9fafb !important;
+}
+
+.products-table td {
+  padding: 12px;
+}
+
+.products-table img {
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Mobil Responsive */
+@media (max-width: 768px) {
+  .products-center-container {
+    padding: 12px;
+  }
+
+  .action-buttons-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .action-buttons-grid button {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .products-table {
+    font-size: 12px;
+  }
+
+  .products-table td,
+  .products-table th {
+    padding: 8px;
+  }
+
+  .table-responsive {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+}
+
+/* Print Stileri */
+@media print {
+  .action-buttons-grid,
+  .filters-section,
+  .products-header {
+    display: none;
+  }
+
+  .products-center-container {
+    background: white;
+    padding: 0;
+  }
+
+  .products-table {
+    font-size: 12px;
+  }
+}

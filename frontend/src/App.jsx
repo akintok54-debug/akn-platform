@@ -7,8 +7,10 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Customers from "./pages/customers";
-import CustomerDetail from "./pages/CustomerDetail"; // <-- Müşteri Detay sayfası eklendi
+import CustomerDetail from "./pages/CustomerDetail";
 import Products from "./pages/Products";
+import ProductsCenter from "./pages/ProductsCenter";
+import ProductDetail from "./pages/ProductDetail";
 import Stock from "./pages/Stock";
 import Orders from "./pages/Orders";
 import Cash from "./pages/Cash";
@@ -33,6 +35,11 @@ import ReportsHub from "./pages/ReportsHub";
 import DealerLogin from "./pages/DealerLogin";
 import DealerPortal from "./pages/DealerPortal";
 import DealerSelfServicePortal from "./pages/DealerSelfServicePortal";
+import BulkUpdate from "./pages/BulkUpdate";
+import ImportHistory from "./pages/ImportHistory";
+import ErrorProducts from "./pages/ErrorProducts";
+import CategoryManager from "./pages/CategoryManager";
+import BrandManager from "./pages/BrandManager";
 
 const AVAILABLE_THEMES = ["light", "dark", "ocean", "corporate"];
 
@@ -100,7 +107,18 @@ function App() {
         {/* Modüller */}
         <Route path="/customers" element={<ProtectedRoute moduleName="customers" element={<Customers />} />} />
         <Route path="/customers/:id" element={<ProtectedRoute moduleName="customers" element={<CustomerDetail />} />} />
-        <Route path="/products" element={<ProtectedRoute moduleName="products" element={<Products />} />} />
+        
+        {/* Ürün Merkezi */}
+        <Route path="/products" element={<ProtectedRoute moduleName="products" element={<ProductsCenter />} />} />
+        <Route path="/products/new" element={<ProtectedRoute moduleName="products" element={<ProductDetail />} />} />
+        <Route path="/products/:id" element={<ProtectedRoute moduleName="products" element={<ProductDetail />} />} />
+        <Route path="/bulk-update/:type" element={<ProtectedRoute moduleName="products" element={<BulkUpdate />} />} />
+        <Route path="/bulk-export" element={<ProtectedRoute moduleName="products" element={<ProductsCenter />} />} />
+        <Route path="/import-history" element={<ProtectedRoute moduleName="products" element={<ImportHistory />} />} />
+        <Route path="/error-products" element={<ProtectedRoute moduleName="products" element={<ErrorProducts />} />} />
+        <Route path="/category-manager" element={<ProtectedRoute moduleName="products" element={<CategoryManager />} />} />
+        <Route path="/brand-manager" element={<ProtectedRoute moduleName="products" element={<BrandManager />} />} />
+        
         <Route path="/stock" element={<ProtectedRoute moduleName="inventory" element={<Stock />} />} />
         <Route path="/orders" element={<ProtectedRoute moduleName="sales" element={<Orders />} />} />
         <Route path="/cash" element={<ProtectedRoute moduleName="accounting" element={<Cash />} />} />
