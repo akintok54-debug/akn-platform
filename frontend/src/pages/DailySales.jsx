@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import api from "../services/api";
 
 function DailySales() {
   const [dailyData, setDailyData] = useState({ totalRevenue: 0, salesCount: 0, items: [] });
@@ -7,13 +8,8 @@ function DailySales() {
   // Günlük Satış Raporunu Çekme
   const fetchDailySales = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/reports/daily-sales", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
+      const response = await api.get("/reports/daily-sales");
+      const data = response.data;
       if (data) {
         setDailyData(data);
       }

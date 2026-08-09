@@ -9,11 +9,16 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://benimmuhasebe.com",
-  "https://www.benimmuhasebe.com",
-];
+// CORS ayarlarını environment variables'ından al, fallback: localhost dev
+const getAllowedOrigins = () => {
+  const envOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map(o => o.trim())
+    : ["http://localhost:5173", "http://localhost:3000"];
+  return envOrigins;
+};
+
+const allowedOrigins = getAllowedOrigins();
+
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {

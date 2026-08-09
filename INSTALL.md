@@ -1,48 +1,155 @@
 # Kurulum Rehberi
 
-## 1) Ön Koşullar
+> **Yeni Başlayanlar İçin**: Kapsamlı kurulum adımları için [SETUP.md](./SETUP.md) dosyasını okuyun.
 
-- Node.js 20+ önerilir
-- npm 10+ önerilir
-- MongoDB Atlas URI veya yerel MongoDB erişimi
+## Hızlı Kurulum (5 Dakika)
 
-## 2) Kök Dizin
+### 1. Ön Koşullar
 
-1. Bu dizine geçin:
-   - c:/Users/Win10/OneDrive/Desktop/AKN-PLATFORM
-2. Kök bağımlılıkları yükleyin:
-   - npm install
+Aşağıdakilerini yüklü olduğundan emin ol:
+- **Node.js** v18+ ([nodejs.org](https://nodejs.org))
+- **npm** v9+ (Node.js ile otomatik gelir)
+- **Git** (kod indirmek için)
+- **MongoDB** erişimi (Atlas veya yerel)
 
-## 3) Backend
+Sürümleri kontrol et:
+```bash
+node --version
+npm --version
+```
 
-1. Backend bağımlılıklarını yükleyin:
-   - npm install --prefix backend
-2. backend/.env dosyasını oluşturun veya güncelleyin
-3. Zorunlu değişkenleri tanımlayın:
-   - MONGO_URI
-   - JWT_SECRET
-   - PORT
+### 2. Projeyi İndir
 
-## 4) Frontend
+```bash
+# GitHub'dan klon yap
+git clone https://github.com/yourusername/akn-platform.git
+cd akn-platform
 
-1. Frontend bağımlılıklarını yükleyin:
-   - npm install --prefix frontend
-2. Gerekirse frontend için VITE_API_URL tanımlayın (opsiyonel)
+# Veya ZIP dosyasını indir ve aç
+```
 
-## 5) Çalıştırma
+### 3. Tüm Bağımlılıkları Yükle
 
-- Backend + Frontend birlikte:
-  - npm run dev
-- Sadece backend:
-  - npm run start --prefix backend
-- Sadece frontend:
-  - npm run dev --prefix frontend
+```bash
+# Root bağımlılıkları
+npm install
 
-## 6) Doğrulama
+# Backend bağımlılıkları
+npm install --prefix backend
 
-- Backend test:
-  - npm run test:all --prefix backend
-- Frontend build:
-  - npm run build --prefix frontend
-- Tüm pipeline:
-  - npm run test:all
+# Frontend bağımlılıkları
+npm install --prefix frontend
+```
+
+### 4. Environment Dosyalarını Oluştur
+
+**Backend:**
+```bash
+cd backend
+cp .env.example .env
+# .env dosyasını aç ve MongoDB URI'nı gir
+nano .env
+```
+
+**Frontend:**
+```bash
+cd ../frontend
+cp .env.example .env
+# Varsayılan ayarlar geliştirme için uygun, değişiklik gerektirmez
+```
+
+### 5. Geliştirme Modunda Başlat
+
+**Terminal 1 - Backend (API Server):**
+```bash
+cd backend
+npm start
+# Çıktı: Server 5000 portunda çalışıyor...
+```
+
+**Terminal 2 - Frontend (Dev Server):**
+```bash
+cd frontend
+npm run dev
+# Çıktı: Local: http://localhost:5173
+```
+
+**Tarayıcı:**
+```
+http://localhost:5173
+```
+
+---
+
+## Environment Variables
+
+### Backend (.env) - Gerekli Değerler
+
+```bash
+# MongoDB bağlantı stringi
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/?appName=Cluster0
+
+# JWT secret key (uzun rastgele string)
+JWT_SECRET=your_super_secret_key_change_this_in_production
+
+# CORS (frontend domain'leri)
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+# Port (default: 5000)
+PORT=5000
+
+# Environment (development/production)
+NODE_ENV=development
+```
+
+### Frontend (.env)
+
+Çoğu durumda varsayılan ayarlar yeterli. Production'da:
+```bash
+VITE_API_URL=https://your-backend-domain.com/api
+```
+
+---
+
+## Sorun Giderme
+
+**"MongoDB bağlantısı başarısız"**
+- `.env` dosyasında `MONGO_URI` doğru mu?
+- Parolada özel karakterler var mı? (URL encode gerekir)
+- MongoDB Atlas: Network Access → IP Whitelist'e ekle
+
+**"CORS hatası"**
+- `.env` dosyasında `CORS_ORIGINS` doğru mu?
+- Frontend URL'si tam eşleşiyor mu?
+
+**"Port 5000 zaten kullanımda"**
+```bash
+PORT=5001 npm start
+```
+
+---
+
+## Sonraki Adımlar
+
+- ✅ **Production Deployment**: [DEPLOY.md](./DEPLOY.md) oku
+- ✅ **Detaylı Kurulum**: [SETUP.md](./SETUP.md) oku
+- ✅ **API Referansı**: [API.md](./API.md) oku
+- ✅ **Database**: [DATABASE.md](./DATABASE.md) oku
+- ✅ **Geliştirici Guide**: [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) oku
+
+---
+
+## Komutlar Özeti
+
+| Komut | Açıklama |
+|-------|----------|
+| `npm install` | Tüm bağımlılıkları yükle |
+| `npm start --prefix backend` | Backend server'ı başlat |
+| `npm run dev --prefix frontend` | Frontend dev server'ı başlat |
+| `npm run build --prefix frontend` | Frontend production build'i |
+| `npm test --prefix backend` | Backend test'lerini çalıştır |
+| `npm run dev` | Backend + Frontend birlikte (root'tan) |
+
+---
+
+**Yardıma mı ihtiyacınız var?** [Sorun Giderme](./SETUP.md#sorun-giderme) bölümüne bakın.
