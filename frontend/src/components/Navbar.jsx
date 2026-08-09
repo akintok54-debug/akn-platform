@@ -32,7 +32,8 @@ function Navbar({ onMenuClick }) {
           }}
         >☰</button>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>Kurumsal ERP Paneli</div>
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "1px" }}>BAHADIR AKIN</div>
+          <div style={{ fontSize: 10, color: "var(--navbar-muted)", marginTop: 2 }}>Enterprise Management System</div>
         </div>
       </div>
 

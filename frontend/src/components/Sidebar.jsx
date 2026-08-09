@@ -40,8 +40,8 @@ function Sidebar({ isOpen, onClose }) {
       }}
     >
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 800 }}>ERP Merkezi</div>
-        <div style={{ fontSize: 13, color: "var(--sidebar-meta)", marginTop: 4 }}>Kurumsal operasyonlar tek panelde</div>
+        <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "1px" }}>BAHADIR AKIN</div>
+        <div style={{ fontSize: 11, color: "var(--sidebar-meta)", marginTop: 4 }}>Enterprise Management</div>
       </div>
 
       <nav style={{ display: "grid", gap: 8 }}>

@@ -39,7 +39,7 @@ function Register() {
       <div style={{ width: "100%", maxWidth: 480, background: "rgba(255,255,255,0.96)", borderRadius: 24, padding: 28, boxShadow: "0 24px 60px rgba(7, 17, 31, 0.22)" }}>
 
         <h2 style={{ fontSize: 28, marginBottom: 8 }}>Firma Kaydı</h2>
-        <p style={{ color: "#64748b", marginBottom: 20 }}>Kurumsal ERP'nizi bugün kurmaya başlayın.</p>
+        <p style={{ color: "#64748b", marginBottom: 20 }}>Bahadır Akın Enterprise platformunda işletmenizi yönetin.</p>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
           <input type="text" name="companyName" placeholder="Firma Adı" value={form.companyName} onChange={handleChange} required />
