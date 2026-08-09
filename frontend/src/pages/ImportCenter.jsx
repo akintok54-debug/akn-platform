@@ -13,6 +13,12 @@ const MODULES = [
   { value: "stock", label: "Excel'den Stok Aktarma" },
 ];
 
+const FIELD_LABELS = {
+  name: "Ürün Adı", sku: "Ürün Kodu (SKU)", barcode: "Barkod", brand: "Marka",
+  category: "Kategori", purchasePrice: "Alış Fiyatı", salePrice: "Satış Fiyatı",
+  vat: "KDV (%)", stock: "Stok", minStock: "Min. Stok", shelf: "Raf", description: "Açıklama", image: "Resim URL",
+};
+
 function ImportCenter() {
   const [moduleName, setModuleName] = useState("products");
   const [rows, setRows] = useState([]);
@@ -22,6 +28,9 @@ function ImportCenter() {
   const [validation, setValidation] = useState(null);
   const [commitResult, setCommitResult] = useState(null);
   const [previewPage, setPreviewPage] = useState(1);
+  const [analysis, setAnalysis] = useState(null); // kolon analiz sonucu
+  const [jobs, setJobs] = useState([]); // import geçmişi
+  const [showJobs, setShowJobs] = useState(false);
 
   const columns = useMemo(() => {
     if (!rows.length) return [];
@@ -119,6 +128,7 @@ function ImportCenter() {
     setValidation(null);
     setCommitResult(null);
     setPreviewPage(1);
+    setAnalysis(null);
 
     try {
       const buffer = await file.arrayBuffer();
@@ -135,6 +145,14 @@ function ImportCenter() {
       setRows(parsedRows);
       setFileName(file.name);
       setMessage(`${parsedRows.length} satır yüklendi.`);
+
+      // Ürün modülü için otomatik kolon analizi
+      if (moduleName === "products" && parsedRows.length > 0) {
+        try {
+          const res = await api.post(`/imports/products/analyze`, { rows: parsedRows.slice(0, 50) });
+          setAnalysis(res.data);
+        } catch { /* analiz hatası sessiz geç */ }
+      }
     } catch (error) {
       console.error(error);
       setRows([]);
@@ -214,8 +232,15 @@ function ImportCenter() {
     }
   };
 
-  const downloadErrorReport = () => {
-    const errorRows = validation?.errorRows || [];
+  const loadJobs = async () => {
+    try {
+      const res = await api.get("/imports/jobs");
+      setJobs(res.data?.jobs || []);
+      setShowJobs(true);
+    } catch { setMessage("İş geçmişi yüklenemedi."); }
+  };
+
+  const downloadErrorReport = () => {    const errorRows = validation?.errorRows || [];
     if (!errorRows.length) {
       setMessage("Hatalı satır bulunmuyor.");
       return;
@@ -253,7 +278,7 @@ function ImportCenter() {
 
         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-            <select value={moduleName} onChange={(e) => setModuleName(e.target.value)} style={inputStyle}>
+            <select value={moduleName} onChange={(e) => { setModuleName(e.target.value); setAnalysis(null); }} style={inputStyle}>
               {MODULES.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
@@ -263,12 +288,48 @@ function ImportCenter() {
             <button style={secondaryBtn} onClick={runValidation} disabled={loading || !rows.length}>Önizleme ve Doğrulama</button>
             <button style={successBtn} onClick={commitImport} disabled={loading || !rows.length}>MongoDB'ye Toplu Kaydet</button>
             <button style={dangerBtn} onClick={downloadErrorReport} disabled={loading || !(validation?.errorRows || []).length}>Hatalı Satırları Raporla</button>
+            <button style={secondaryBtn} onClick={loadJobs} disabled={loading}>📋 İş Geçmişi</button>
           </div>
           <div style={{ marginTop: 10, color: "#475569" }}>
             Dosya: {fileName || "-"} | Satır: {rows.length} | Parça Boyutu: {CHUNK_SIZE}
           </div>
           {message && <div style={{ marginTop: 10, color: "#0f172a", fontWeight: 600 }}>{message}</div>}
         </div>
+
+        {/* Kolon Analiz Paneli */}
+        {analysis && (
+          <div style={{ background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 14, padding: 16, marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <h3 style={{ margin: 0, color: "#15803d" }}>🔍 Otomatik Kolon Analizi</h3>
+              <span style={{ background: "#dcfce7", color: "#166534", borderRadius: 8, padding: "4px 10px", fontWeight: 700, fontSize: 13 }}>
+                Platform: {analysis.platform}
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 8, marginBottom: 10 }}>
+              {Object.entries(analysis.mappings || {}).map(([field, excelCol]) => (
+                <div key={field} style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px", display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "#64748b" }}>{excelCol}</span>
+                  <span style={{ fontWeight: 700, color: "#166534" }}>→ {FIELD_LABELS[field] || field}</span>
+                </div>
+              ))}
+            </div>
+            {analysis.unmapped?.length > 0 && (
+              <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: 10, fontSize: 13 }}>
+                <strong>⚠️ Eşleştirilemeyen kolonlar:</strong> {analysis.unmapped.join(", ")}
+              </div>
+            )}
+            {analysis.imageColumns?.length > 0 && (
+              <div style={{ marginTop: 8, color: "#2563eb", fontSize: 13 }}>
+                🖼 Resim kolonları tespit edildi: <strong>{analysis.imageColumns.join(", ")}</strong>
+              </div>
+            )}
+            {analysis.samplePrices?.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                Örnek fiyat dönüşümleri: {analysis.samplePrices.map((p) => `"${p.raw}" → ${p.parsed}`).join(" | ")}
+              </div>
+            )}
+          </div>
+        )}
 
         {validation?.summary && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 14 }}>
@@ -326,6 +387,42 @@ function ImportCenter() {
               </div>
             </section>
           ) : null}
+
+          {/* İş Geçmişi */}
+          {showJobs && jobs.length > 0 && (
+            <section style={cardStyle}>
+              <h3 style={{ marginTop: 0 }}>📋 Import İş Geçmişi (Son 50)</h3>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["Tarih", "Modül", "Platform", "Dosya", "Toplam", "Eklendi", "Güncellendi", "Hatalı", "Resim", "Durum"].map((h) => (
+                        <th key={h} style={thStyle}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((job) => (
+                      <tr key={job._id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={tdStyle}>{job.startedAt ? new Date(job.startedAt).toLocaleString("tr-TR") : "-"}</td>
+                        <td style={tdStyle}>{job.module}</td>
+                        <td style={tdStyle}>{job.platform || "-"}</td>
+                        <td style={tdStyle}>{job.filename || "-"}</td>
+                        <td style={tdStyle}>{job.totalRows}</td>
+                        <td style={{ ...tdStyle, color: "#16a34a", fontWeight: 700 }}>{job.inserted}</td>
+                        <td style={{ ...tdStyle, color: "#2563eb", fontWeight: 700 }}>{job.updated}</td>
+                        <td style={{ ...tdStyle, color: job.failed > 0 ? "#dc2626" : "#64748b", fontWeight: job.failed > 0 ? 700 : 400 }}>{job.failed}</td>
+                        <td style={tdStyle}>{job.imagesFound || 0}</td>
+                        <td style={{ ...tdStyle, color: job.status === "completed" ? "#16a34a" : job.status === "partial" ? "#d97706" : "#dc2626", fontWeight: 700 }}>
+                          {job.status === "completed" ? "✅ Tamamlandı" : job.status === "partial" ? "⚠️ Kısmi" : "❌ Hatalı"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </Layout>

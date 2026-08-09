@@ -4,11 +4,36 @@ const Product = require("../models/Product");
 const Customer = require("../models/customer");
 const AccountTransaction = require("../models/AccountTransaction");
 const StockMovement = require("../models/StockMovement");
+const ImportJob = require("../models/ImportJob");
 const { normalizeCustomerPayload } = require("../utils/customerUtils");
 
 const MAX_ROWS = 5000;
 
 const getCompanyId = (req) => req.user?.company || req.user?.companyId || null;
+
+// ─── Fiyat Normalizer (TR: 1.250,50 / EN: 1,250.50 / düz: 1250.50) ─────────
+const normalizePrice = (value) => {
+  if (value === null || value === undefined || value === "") return NaN;
+  if (typeof value === "number") return value;
+  const str = String(value).trim().replace(/[₺$€£\s]/g, "");
+  // TR formatı: hem nokta hem virgül varsa ve virgül sondaysa
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
+    return parseFloat(str.replace(/\./g, "").replace(",", "."));
+  }
+  // EN formatı: hem virgül hem nokta varsa ve nokta sondaysa
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) {
+    return parseFloat(str.replace(/,/g, ""));
+  }
+  // Sadece virgül (TR ondalık)
+  if (/^\d+,\d+$/.test(str)) return parseFloat(str.replace(",", "."));
+  return parseFloat(str);
+};
+
+const normalizeKdv = (value) => {
+  const str = String(value || "").trim().replace("%", "");
+  const n = parseFloat(str);
+  return Number.isFinite(n) ? n : 20;
+};
 
 const toNumber = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -19,10 +44,231 @@ const normalizeText = (value) => String(value || "").trim();
 
 const generateDealerPortalToken = () => crypto.randomBytes(20).toString("hex");
 
+// ─── Resim URL'lerini ayıkla ───────────────────────────────────────────────
+const extractImageUrls = (value) => {
+  if (!value) return [];
+  const raw = String(value).trim();
+  return raw
+    .split(/[,;|\n\r]+/)
+    .map((s) => s.trim())
+    .filter((s) => /^https?:\/\/.+/i.test(s));
+};
+
+// ─── Genişletilmiş alias tablosu ──────────────────────────────────────────
+const PRODUCT_ALIASES = {
+  name: [
+    "name", "urunAdi", "productName", "title", "baslik", "ürün adı", "ürün başlığı",
+    "product title", "urun_adi", "urunadi", "isim", "ad",
+    // Trendyol
+    "product main title", "title",
+    // Hepsiburada
+    "product name", "ürün ismi",
+    // N11
+    "ürün başlığı", "n11 urun basligi",
+    // WooCommerce
+    "Name",
+    // Shopify
+    "Title",
+    // İkas
+    "Ürün Adı",
+  ],
+  sku: [
+    "sku", "urunKodu", "productCode", "stockCode", "stokKodu",
+    "ürün kodu", "stok kodu", "urun_kodu", "product code", "stock code",
+    "model", "model kodu", "modelin", "item number",
+    // Trendyol
+    "Product Main Id", "Ürün Ana Id",
+    // Hepsiburada
+    "HepsiburadaSku", "Satıcı SKU", "Satici Sku",
+    // N11
+    "n11 ürün kodu", "satici urun kodu",
+    // WooCommerce
+    "SKU",
+    // Shopify
+    "Variant SKU",
+    // İkas
+    "Stok Kodu",
+  ],
+  barcode: [
+    "barcode", "barkod", "ean", "gtin", "upc", "isbn",
+    "ürün barkodu", "barkod numarası", "barkod no",
+    // Trendyol
+    "Barcode",
+    // Hepsiburada
+    "Barkod",
+    // N11
+    "barkod", "barkod kodu",
+    // WooCommerce
+    "barcode",
+    // Shopify
+    "Variant Barcode",
+    // İkas
+    "Barkod",
+  ],
+  brand: [
+    "brand", "marka", "brandName", "marka adi", "markaadi",
+    // Trendyol
+    "Brand",
+    // Hepsiburada
+    "Marka",
+    // N11
+    "marka", "üretici marka",
+    // Shopify
+    "Vendor",
+    // İkas
+    "Marka",
+  ],
+  category: [
+    "category", "kategori", "categoryName", "kategoriAdi", "category path",
+    "kategori yolu", "ana kategori", "alt kategori",
+    // Trendyol
+    "Category", "Kategori",
+    // Hepsiburada
+    "Kategori", "Alt Kategori",
+    // N11
+    "kategori",
+    // WooCommerce
+    "Categories",
+    // Shopify
+    "Type",
+    // İkas
+    "Kategori",
+  ],
+  purchasePrice: [
+    "purchasePrice", "alisFiyati", "maliyet", "alisfiyati", "alis fiyati",
+    "buying price", "cost", "cost price", "purchase price", "alım fiyatı",
+    "tedarik fiyatı",
+  ],
+  salePrice: [
+    "salePrice", "satisFiyati", "fiyat", "price", "satış fiyatı", "satis fiyati",
+    "liste fiyatı", "liste fiyat", "sale price", "selling price",
+    // Trendyol
+    "Sale Price", "Satış Fiyatı",
+    // Hepsiburada
+    "Fiyat", "Satış Fiyatı",
+    // N11
+    "fiyat", "satış fiyatı",
+    // WooCommerce
+    "Regular price", "Sale price",
+    // Shopify
+    "Variant Price",
+    // İkas
+    "Satış Fiyatı",
+  ],
+  vat: [
+    "vat", "kdv", "kdvOrani", "tax", "taxRate", "kdv oranı", "vergi",
+    "kdv %", "kdv(%)", "vat rate",
+    // Trendyol
+    "Vat", "KDV",
+    // İkas
+    "KDV Oranı",
+  ],
+  stock: [
+    "stock", "stok", "quantity", "miktar", "adet", "stok adedi", "stok miktarı",
+    "envanter", "inventory",
+    // Trendyol
+    "Quantity", "Stok",
+    // Hepsiburada
+    "Stok Adedi",
+    // WooCommerce
+    "Stock",
+    // Shopify
+    "Variant Inventory Qty",
+    // İkas
+    "Stok",
+  ],
+  minStock: [
+    "minStock", "minStok", "minimumStok", "min stock", "min stok",
+    "minimum stok", "kritik stok",
+  ],
+  shelf: [
+    "shelf", "raf", "rafKodu", "rafNo", "shelf code", "location", "depo konumu",
+  ],
+  description: [
+    "description", "aciklama", "açıklama", "tanim", "tanım", "desc",
+    "product description", "ürün açıklaması", "detay",
+    // Trendyol
+    "Description",
+    // WooCommerce
+    "Description",
+    // Shopify
+    "Body (HTML)",
+    // İkas
+    "Açıklama",
+  ],
+  image: [
+    "image", "resim", "gorsel", "görsel", "foto", "fotoğraf", "photo",
+    "image url", "image1", "resim1", "gorsel1", "görsel1",
+    "images", "image urls", "product image", "photo url",
+    // Trendyol
+    "Image1", "Image2",
+    // Hepsiburada
+    "Görsel URL",
+    // Shopify
+    "Image Src",
+    // WooCommerce
+    "Images",
+    // İkas
+    "Ürün Görseli",
+  ],
+};
+
+// Ek resim kolonları (image2-image5)
+for (let i = 2; i <= 5; i++) {
+  PRODUCT_ALIASES.image.push(`image${i}`, `resim${i}`, `gorsel${i}`, `görsel${i}`, `Image${i}`);
+}
+
+// ─── Platform otomatik tespiti ────────────────────────────────────────────
+const detectPlatform = (headers) => {
+  const hs = headers.map((h) => String(h).toLowerCase());
+  if (hs.some((h) => h.includes("product main id") || h.includes("hepsiburadaid"))) return "Trendyol";
+  if (hs.some((h) => h.includes("hepsiburadaSku") || h.includes("hepsiburadaskuid"))) return "Hepsiburada";
+  if (hs.some((h) => h.includes("n11"))) return "N11";
+  if (hs.some((h) => h === "handle" || h === "variant sku" || h === "vendor")) return "Shopify";
+  if (hs.some((h) => h === "type" && hs.includes("sku") && hs.includes("published"))) return "WooCommerce";
+  if (hs.some((h) => h.includes("ikas"))) return "İkas";
+  return null;
+};
+
+// ─── Kolon eşleştirme analizi ─────────────────────────────────────────────
+const analyzeColumns = (headers) => {
+  const mappings = {};
+  const unmapped = [];
+  const platform = detectPlatform(headers);
+
+  for (const header of headers) {
+    let matched = false;
+    const hLower = header.toLowerCase().trim();
+
+    for (const [field, aliases] of Object.entries(PRODUCT_ALIASES)) {
+      if (aliases.some((a) => a.toLowerCase() === hLower || a.toLowerCase() === header.toLowerCase())) {
+        if (!mappings[field]) mappings[field] = header;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) unmapped.push(header);
+  }
+
+  return { platform: platform || "Bilinmiyor", mappings, unmapped };
+};
+
+// ─── mapGet (alias listesinden değer oku) ────────────────────────────────
 const mapGet = (row, aliases) => {
+  // Önce tam eşleşme dene
   for (const key of aliases) {
     if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") {
       return row[key];
+    }
+  }
+  // Büyük/küçük harf duyarsız deneme
+  const rowKeys = Object.keys(row);
+  for (const key of aliases) {
+    const kl = key.toLowerCase();
+    const found = rowKeys.find((rk) => rk.toLowerCase() === kl);
+    if (found && row[found] !== undefined && row[found] !== null && String(row[found]).trim() !== "") {
+      return row[found];
     }
   }
   return "";
@@ -132,31 +378,46 @@ const validateProducts = async (rows) => {
     const rowNumber = idx + 2;
     const errors = [];
 
-    const name = normalizeText(mapGet(row, ["name", "urunAdi", "productName"]));
-    const sku = normalizeText(mapGet(row, ["sku", "urunKodu", "productCode"]));
-    const barcode = normalizeText(mapGet(row, ["barcode", "barkod"]));
-    const purchasePrice = toNumber(mapGet(row, ["purchasePrice", "alisFiyati"]), NaN);
-    const salePrice = toNumber(mapGet(row, ["salePrice", "satisFiyati"]), NaN);
-    const stock = toNumber(mapGet(row, ["stock", "stok"]), NaN);
+    const name = normalizeText(mapGet(row, PRODUCT_ALIASES.name));
+    const sku = normalizeText(mapGet(row, PRODUCT_ALIASES.sku));
+    const barcode = normalizeText(mapGet(row, PRODUCT_ALIASES.barcode));
+    const rawPurchasePrice = mapGet(row, PRODUCT_ALIASES.purchasePrice);
+    const rawSalePrice = mapGet(row, PRODUCT_ALIASES.salePrice);
+    const rawStock = mapGet(row, PRODUCT_ALIASES.stock);
+    const purchasePrice = normalizePrice(rawPurchasePrice);
+    const salePrice = normalizePrice(rawSalePrice);
+    const stock = rawStock !== "" ? toNumber(rawStock, NaN) : 0;
 
-    if (!name) errors.push("name zorunludur.");
-    if (Number.isNaN(purchasePrice)) errors.push("purchasePrice sayisal olmali.");
-    if (Number.isNaN(salePrice)) errors.push("salePrice sayisal olmali.");
-    if (Number.isNaN(stock)) errors.push("stock sayisal olmali.");
+    // Resim URL'lerini tüm resim kolonlarından topla
+    const imageUrls = [];
+    for (const key of Object.keys(row)) {
+      const kl = key.toLowerCase().trim();
+      if (PRODUCT_ALIASES.image.some((a) => a.toLowerCase() === kl)) {
+        extractImageUrls(row[key]).forEach((u) => { if (!imageUrls.includes(u)) imageUrls.push(u); });
+      }
+    }
+
+    if (!name) errors.push("Ürün adı (name) zorunludur.");
+    if (rawSalePrice !== "" && Number.isNaN(salePrice)) errors.push("Satış fiyatı sayısal olmalı.");
+    if (rawPurchasePrice !== "" && Number.isNaN(purchasePrice)) errors.push("Alış fiyatı sayısal olmalı.");
+    if (Number.isNaN(stock)) errors.push("Stok sayısal olmalı.");
 
     const normalized = {
       name,
       sku,
       barcode,
-      brand: normalizeText(mapGet(row, ["brand", "marka"])),
-      category: normalizeText(mapGet(row, ["category", "kategori"])),
-      purchasePrice: Number.isNaN(purchasePrice) ? 0 : purchasePrice,
-      salePrice: Number.isNaN(salePrice) ? 0 : salePrice,
-      vat: toNumber(mapGet(row, ["vat", "kdv"]), 20),
+      brand: normalizeText(mapGet(row, PRODUCT_ALIASES.brand)),
+      category: normalizeText(mapGet(row, PRODUCT_ALIASES.category)),
+      purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : 0,
+      salePrice: Number.isFinite(salePrice) ? salePrice : 0,
+      vat: normalizeKdv(mapGet(row, PRODUCT_ALIASES.vat)),
       stock: Number.isNaN(stock) ? 0 : stock,
-      minStock: toNumber(mapGet(row, ["minStock", "minStok"]), 0),
-      shelf: normalizeText(mapGet(row, ["shelf", "raf"])),
+      minStock: toNumber(mapGet(row, PRODUCT_ALIASES.minStock), 0),
+      shelf: normalizeText(mapGet(row, PRODUCT_ALIASES.shelf)),
+      description: normalizeText(mapGet(row, PRODUCT_ALIASES.description)),
+      image: imageUrls[0] || "",
       active: String(mapGet(row, ["active", "aktif"]) || "true").toLowerCase() !== "false",
+      _imageUrls: imageUrls,
     };
 
     if (errors.length) {
@@ -367,8 +628,11 @@ const validateByModule = async ({ moduleName, rows, companyId }) => {
 };
 
 const commitProducts = async ({ validRows, companyId }) => {
+  let imagesFound = 0;
   const operations = validRows.map((item) => {
     const row = item.normalized;
+    const { _imageUrls, ...rowData } = row;
+    if (_imageUrls && _imageUrls.length > 0) imagesFound++;
     const filter = row.barcode
       ? { company: companyId, barcode: row.barcode }
       : row.sku
@@ -378,7 +642,7 @@ const commitProducts = async ({ validRows, companyId }) => {
     return {
       updateOne: {
         filter,
-        update: { $set: { ...row, company: companyId } },
+        update: { $set: { ...rowData, company: companyId } },
         upsert: true,
       },
     };
@@ -388,6 +652,7 @@ const commitProducts = async ({ validRows, companyId }) => {
   return {
     inserted: result.upsertedCount || 0,
     updated: result.modifiedCount || 0,
+    imagesFound,
   };
 };
 
@@ -635,9 +900,11 @@ exports.validateImport = async (req, res) => {
 };
 
 exports.commitImport = async (req, res) => {
+  const startedAt = new Date();
   try {
     const moduleName = String(req.params.module || "").toLowerCase();
     const companyId = getCompanyId(req);
+    const filename = req.body?.filename || "";
 
     if (!companyId) {
       return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
@@ -658,11 +925,7 @@ exports.commitImport = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Kaydedilebilir satir bulunamadi.",
-        summary: {
-          totalRows: rows.length,
-          validRows: 0,
-          failedRows: errorRows.length,
-        },
+        summary: { totalRows: rows.length, validRows: 0, failedRows: errorRows.length },
         errorRows,
       });
     }
@@ -674,19 +937,95 @@ exports.commitImport = async (req, res) => {
       userId: req.user?.id || null,
     });
 
+    // ImportJob kaydı
+    const headers = rows.length ? Object.keys(rows[0]) : [];
+    const { platform, mappings } = analyzeColumns(headers);
+    await ImportJob.create({
+      companyId,
+      userId: req.user?.id || null,
+      module: moduleName,
+      filename,
+      platform,
+      status: errorRows.length > 0 ? "partial" : "completed",
+      totalRows: rows.length,
+      inserted: result.inserted || 0,
+      updated: result.updated || 0,
+      failed: errorRows.length,
+      imagesFound: result.imagesFound || 0,
+      columnMappings: mappings,
+      errorSummary: errorRows.slice(0, 50).map((e) => ({ rowNumber: e.rowNumber, errors: e.errors })),
+      startedAt,
+      completedAt: new Date(),
+    });
+
     return res.status(200).json({
       success: true,
       module: moduleName,
+      platform,
       summary: {
         totalRows: rows.length,
         validRows: validRows.length,
         failedRows: errorRows.length,
         inserted: result.inserted,
         updated: result.updated,
+        imagesFound: result.imagesFound || 0,
       },
       errorRows,
       message: "Import islemi tamamlandi.",
     });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── Kolon analizi endpoint'i ─────────────────────────────────────────────
+exports.analyzeImport = async (req, res) => {
+  try {
+    const rows = req.body?.rows;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ success: false, message: "rows dizisi zorunludur." });
+    }
+
+    const headers = Object.keys(rows[0]);
+    const { platform, mappings, unmapped } = analyzeColumns(headers);
+
+    const samplePrices = [];
+    rows.slice(0, 5).forEach((row) => {
+      const sp = mapGet(row, PRODUCT_ALIASES.salePrice);
+      if (sp) samplePrices.push({ raw: sp, parsed: normalizePrice(sp) });
+    });
+
+    const imageColsFound = headers.filter((h) =>
+      PRODUCT_ALIASES.image.some((a) => a.toLowerCase() === h.toLowerCase().trim())
+    );
+
+    return res.status(200).json({
+      success: true,
+      platform,
+      totalColumns: headers.length,
+      mappings,
+      unmapped,
+      imageColumns: imageColsFound,
+      samplePrices,
+      totalRows: rows.length,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ─── ImportJob geçmişi endpoint'i ─────────────────────────────────────────
+exports.getImportJobs = async (req, res) => {
+  try {
+    const companyId = getCompanyId(req);
+    if (!companyId) return res.status(400).json({ success: false, message: "Sirket bulunamadi." });
+
+    const jobs = await ImportJob.find({ companyId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+
+    return res.status(200).json({ success: true, jobs });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
