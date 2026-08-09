@@ -208,25 +208,51 @@ function ImportCenter() {
 
   const commitImport = async () => {
     if (!rows.length) {
-      setMessage("Önce Excel dosyası yükleyin.");
+      setMessage("❌ Önce Excel dosyası yükleyin.");
       return;
     }
+    
+    if (!validation) {
+      setMessage("❌ Önce 'Önizleme ve Doğrulama' yapmalısın!");
+      return;
+    }
+
+    if (validation.summary?.failedRows > 0) {
+      setMessage("❌ Hatalı satırlar var. Lütfen hata raporunu kontrol et ve Excel'i düzelt.");
+      return;
+    }
+
     setLoading(true);
-    setMessage("");
+    setMessage("⏳ Kayıt işlemi başlıyor...");
     try {
       const result = rows.length > CHUNK_SIZE
         ? await runChunkedAction("commit")
         : (await api.post(`/imports/${moduleName}/commit`, { rows })).data;
+      
       setCommitResult(result);
       setValidation(result);
-      setMessage("Aktarım işlemi başarıyla tamamlandı.");
+      
+      // Başarı mesajı
+      const insertedMsg = result.summary?.inserted > 0 ? `✅ ${result.summary.inserted} ürün eklendi` : "";
+      const updatedMsg = result.summary?.updated > 0 ? `🔄 ${result.summary.updated} güncellendi` : "";
+      const messages = [insertedMsg, updatedMsg].filter(Boolean).join(", ");
+      
+      setMessage(`🎉 Başarılı! ${messages || result.message || "Aktarım tamamlandı."}`);
     } catch (error) {
-      console.error(error);
+      console.error("Commit hatası:", error);
       const payload = error?.response?.data;
+      const errorMsg = payload?.message || error.message || "Aktarım başarısız.";
+      
       if (payload?.summary) {
         setValidation(payload);
       }
-      setMessage(payload?.message || "Aktarım başarısız.");
+      
+      setMessage(`❌ Hata: ${errorMsg}`);
+      
+      // Detaylı error log
+      if (payload?.details) {
+        console.error("Backend Error:", payload.details);
+      }
     } finally {
       setLoading(false);
     }
@@ -284,16 +310,30 @@ function ImportCenter() {
               ))}
             </select>
             <input type="file" accept=".xlsx,.xls,.csv" onChange={(e) => parseFile(e.target.files?.[0])} style={inputStyle} />
-            <button style={primaryBtn} onClick={downloadTemplate} disabled={loading}>Excel Şablonu İndir</button>
-            <button style={secondaryBtn} onClick={runValidation} disabled={loading || !rows.length}>Önizleme ve Doğrulama</button>
-            <button style={successBtn} onClick={commitImport} disabled={loading || !rows.length}>MongoDB'ye Toplu Kaydet</button>
-            <button style={dangerBtn} onClick={downloadErrorReport} disabled={loading || !(validation?.errorRows || []).length}>Hatalı Satırları Raporla</button>
-            <button style={secondaryBtn} onClick={loadJobs} disabled={loading}>📋 İş Geçmişi</button>
+            <button style={primaryBtn} onClick={downloadTemplate} disabled={loading}>📥 Şablonu İndir</button>
+            <button style={secondaryBtn} onClick={runValidation} disabled={loading || !rows.length}>✅ Adım 1: Doğrula</button>
+            <button style={successBtn} onClick={commitImport} disabled={loading || !rows.length || !validation}>💾 Adım 2: Kaydet</button>
+            <button style={dangerBtn} onClick={downloadErrorReport} disabled={loading || !(validation?.errorRows || []).length}>📋 Hataları İndir</button>
+            <button style={secondaryBtn} onClick={loadJobs} disabled={loading}>🕐 Geçmiş</button>
           </div>
-          <div style={{ marginTop: 10, color: "#475569" }}>
-            Dosya: {fileName || "-"} | Satır: {rows.length} | Parça Boyutu: {CHUNK_SIZE}
+          <div style={{ marginTop: 10, color: "#475569", fontSize: 12 }}>
+            📄 Dosya: {fileName || "-"} | 📊 Satır: {rows.length} | 📦 Parça: {CHUNK_SIZE}
           </div>
-          {message && <div style={{ marginTop: 10, color: "#0f172a", fontWeight: 600 }}>{message}</div>}
+          {message && (
+            <div style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 14,
+              border: "2px solid",
+              background: message.includes("❌") ? "#fee2e2" : message.includes("🎉") ? "#dcfce7" : message.includes("⏳") ? "#fef3c7" : "#e0f2fe",
+              color: message.includes("❌") ? "#991b1b" : message.includes("🎉") ? "#166534" : message.includes("⏳") ? "#92400e" : "#0c4a6e",
+              borderColor: message.includes("❌") ? "#fca5a5" : message.includes("🎉") ? "#86efac" : message.includes("⏳") ? "#fcd34d" : "#7dd3fc",
+            }}>
+              {message}
+            </div>
+          )}
         </div>
 
         {/* Kolon Analiz Paneli */}

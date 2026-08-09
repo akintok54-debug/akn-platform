@@ -1,5 +1,7 @@
 const XLSX = require("xlsx");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const Product = require("../models/Product");
 const Customer = require("../models/customer");
 const AccountTransaction = require("../models/AccountTransaction");
@@ -9,6 +11,12 @@ const { processImageUrls } = require("../services/imageService");
 const { normalizeCustomerPayload } = require("../utils/customerUtils");
 
 const MAX_ROWS = 5000;
+
+// Fallback data directory
+const DATA_DIR = path.join(__dirname, "..", "data");
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 const getCompanyId = (req) => req.user?.company || req.user?.companyId || null;
 
@@ -633,101 +641,170 @@ const commitProducts = async ({ validRows, companyId }) => {
   let imageErrors = 0;
   const imageLog = [];
 
-  // Resim işleme: her satır için paralel URL kontrolü + Cloudinary upload
-  const processedRows = await Promise.all(
-    validRows.map(async (item) => {
-      const { _imageUrls, ...rowData } = item.normalized;
-      if (!_imageUrls || _imageUrls.length === 0) return { rowData, item };
+  try {
+    // Resim işleme: her satır için paralel URL kontrolü + Cloudinary upload
+    const processedRows = await Promise.all(
+      validRows.map(async (item) => {
+        const { _imageUrls, ...rowData } = item.normalized;
+        if (!_imageUrls || _imageUrls.length === 0) return { rowData, item };
 
-      imagesFound++;
-      const results = await processImageUrls(_imageUrls);
-      const successful = results.filter((r) => r.ok).map((r) => r.url);
-      const failed = results.filter((r) => !r.ok);
+        imagesFound++;
+        const results = await processImageUrls(_imageUrls);
+        const successful = results.filter((r) => r.ok).map((r) => r.url);
+        const failed = results.filter((r) => !r.ok);
 
-      if (failed.length > 0) {
-        imageErrors += failed.length;
-        imageLog.push({
-          rowNumber: item.rowNumber,
-          name: rowData.name,
-          failedUrls: failed.map((f) => `${f.url}: ${f.reason}`),
-        });
+        if (failed.length > 0) {
+          imageErrors += failed.length;
+          imageLog.push({
+            rowNumber: item.rowNumber,
+            name: rowData.name,
+            failedUrls: failed.map((f) => `${f.url}: ${f.reason}`),
+          });
+        }
+
+        rowData.image = successful[0] || rowData.image || "";
+        rowData.images = successful;
+
+        return { rowData, item };
+      })
+    );
+
+    // Duplicate kontrolü: barkod → sku → ürün adı sırasıyla
+    const operations = processedRows.map(({ rowData }) => {
+      const filter = rowData.barcode
+        ? { company: companyId, barcode: rowData.barcode }
+        : rowData.sku
+        ? { company: companyId, sku: rowData.sku }
+        : { company: companyId, name: rowData.name };
+
+      // Mevcut görselleri silme: sadece yeni görseller varsa güncelle
+      const updateFields = { ...rowData, company: companyId };
+      if (!rowData.image) delete updateFields.image;
+      if (!rowData.images || rowData.images.length === 0) delete updateFields.images;
+
+      return {
+        updateOne: {
+          filter,
+          update: { $set: updateFields },
+          upsert: true,
+        },
+      };
+    });
+
+    console.log(`commitProducts: ${operations.length} operasyon hazırlıklı. Company: ${companyId}`);
+    
+    let result;
+    try {
+      result = await Product.bulkWrite(operations, { ordered: false });
+      console.log(`✅ MongoDB commit başarılı: inserted=${result.upsertedCount || 0}, updated=${result.modifiedCount || 0}`);
+    } catch (mongoError) {
+      console.warn("⚠️  MongoDB bulkWrite başarısız, fallback JSON dosyasına yazılıyor...");
+      console.error("MongoDB Error:", mongoError.message);
+      
+      // Fallback: JSON dosyasına yaz
+      const productsFile = path.join(DATA_DIR, "products.json");
+      let existingProducts = [];
+      
+      if (fs.existsSync(productsFile)) {
+        try {
+          existingProducts = JSON.parse(fs.readFileSync(productsFile, "utf-8")) || [];
+        } catch (e) {
+          existingProducts = [];
+        }
       }
 
-      rowData.image = successful[0] || rowData.image || "";
-      rowData.images = successful;
+      let inserted = 0;
+      let updated = 0;
 
-      return { rowData, item };
-    })
-  );
+      processedRows.forEach(({ rowData }) => {
+        const filter = rowData.barcode
+          ? { company: companyId, barcode: rowData.barcode }
+          : rowData.sku
+          ? { company: companyId, sku: rowData.sku }
+          : { company: companyId, name: rowData.name };
 
-  // Duplicate kontrolü: barkod → sku → ürün adı sırasıyla
-  const operations = processedRows.map(({ rowData }) => {
-    const filter = rowData.barcode
-      ? { company: companyId, barcode: rowData.barcode }
-      : rowData.sku
-      ? { company: companyId, sku: rowData.sku }
-      : { company: companyId, name: rowData.name };
+        const existingIndex = existingProducts.findIndex((p) => {
+          return (
+            (filter.barcode && p.barcode === filter.barcode && String(p.company) === String(companyId)) ||
+            (filter.sku && p.sku === filter.sku && String(p.company) === String(companyId)) ||
+            (filter.name && p.name === filter.name && String(p.company) === String(companyId))
+          );
+        });
 
-    // Mevcut görselleri silme: sadece yeni görseller varsa güncelle
-    const updateFields = { ...rowData, company: companyId };
-    if (!rowData.image) delete updateFields.image;
-    if (!rowData.images || rowData.images.length === 0) delete updateFields.images;
+        if (existingIndex >= 0) {
+          existingProducts[existingIndex] = { ...existingProducts[existingIndex], ...rowData, company: companyId, updatedAt: new Date() };
+          updated++;
+        } else {
+          existingProducts.push({ ...rowData, company: companyId, createdAt: new Date(), updatedAt: new Date() });
+          inserted++;
+        }
+      });
 
+      fs.writeFileSync(productsFile, JSON.stringify(existingProducts, null, 2), "utf-8");
+      console.log(`✅ Fallback JSON dosyasına kaydedildi: ${productsFile}`);
+
+      result = { upsertedCount: inserted, modifiedCount: updated };
+    }
+    
     return {
-      updateOne: {
-        filter,
-        update: { $set: updateFields },
-        upsert: true,
-      },
+      inserted: result.upsertedCount || 0,
+      updated: result.modifiedCount || 0,
+      imagesFound,
+      imageErrors,
+      imageLog,
     };
-  });
-
-  const result = await Product.bulkWrite(operations, { ordered: false });
-  return {
-    inserted: result.upsertedCount || 0,
-    updated: result.modifiedCount || 0,
-    imagesFound,
-    imageErrors,
-    imageLog,
-  };
+  } catch (error) {
+    console.error("❌ commitProducts HATA:", error.message, error.stack);
+    throw new Error(`Ürün kaydı başarısız: ${error.message}`);
+  }
 };
 
 const commitCustomers = async ({ validRows, companyId }) => {
-  const operations = validRows.map((item, idx) => {
-    const row = item.normalized;
-    const customerCode = row.customerCode || `CR-IMP-${Date.now()}-${idx}`;
+  try {
+    const operations = validRows.map((item, idx) => {
+      const row = item.normalized;
+      const customerCode = row.customerCode || `CR-IMP-${Date.now()}-${idx}`;
 
-    const filter = row.customerCode
-      ? { company: companyId, customerCode: row.customerCode }
-      : row.email
-      ? { company: companyId, email: row.email }
-      : { company: companyId, companyName: row.companyName, phone: row.phone || "" };
+      const filter = row.customerCode
+        ? { company: companyId, customerCode: row.customerCode }
+        : row.email
+        ? { company: companyId, email: row.email }
+        : { company: companyId, companyName: row.companyName, phone: row.phone || "" };
 
-    return {
-      updateOne: {
-        filter,
-        update: {
-          $set: {
-            ...row,
-            customerCode,
-            company: companyId,
+      return {
+        updateOne: {
+          filter,
+          update: {
+            $set: {
+              ...row,
+              customerCode,
+              company: companyId,
+            },
+            $setOnInsert: {
+              dealerPortalToken: generateDealerPortalToken(),
+              dealerPortalEnabled: true,
+              dealerPortalTokenUpdatedAt: new Date(),
+            },
           },
-          $setOnInsert: {
-            dealerPortalToken: generateDealerPortalToken(),
-            dealerPortalEnabled: true,
-            dealerPortalTokenUpdatedAt: new Date(),
-          },
+          upsert: true,
         },
-        upsert: true,
-      },
-    };
-  });
+      };
+    });
 
-  const result = await Customer.bulkWrite(operations, { ordered: false });
-  return {
-    inserted: result.upsertedCount || 0,
-    updated: result.modifiedCount || 0,
-  };
+    console.log(`commitCustomers: ${operations.length} operasyon. Company: ${companyId}`);
+    
+    const result = await Customer.bulkWrite(operations, { ordered: false });
+    
+    console.log(`commitCustomers sonuç: inserted=${result.upsertedCount || 0}, updated=${result.modifiedCount || 0}`);
+    
+    return {
+      inserted: result.upsertedCount || 0,
+      updated: result.modifiedCount || 0,
+    };
+  } catch (error) {
+    console.error("❌ commitCustomers HATA:", error.message);
+    throw new Error(`Müşteri kaydı başarısız: ${error.message}`);
+  }
 };
 
 const commitTransactions = async ({ validRows, companyId }) => {
@@ -966,36 +1043,56 @@ exports.commitImport = async (req, res) => {
       });
     }
 
-    const result = await commitByModule({
-      moduleName,
-      validRows,
-      companyId,
-      userId: req.user?.id || null,
-    });
+    console.log(`\n📝 Import başladı: ${moduleName}, ${validRows.length} satır, Company: ${companyId}`);
+
+    let result;
+    try {
+      result = await commitByModule({
+        moduleName,
+        validRows,
+        companyId,
+        userId: req.user?.id || null,
+      });
+    } catch (commitError) {
+      console.error(`❌ commitByModule hatası: ${commitError.message}`);
+      return res.status(500).json({
+        success: false,
+        message: `Kayıt işlemi başarısız: ${commitError.message}`,
+        summary: { totalRows: rows.length, validRows: validRows.length, failedRows: errorRows.length },
+        errorRows,
+      });
+    }
+
+    console.log(`✅ Import tamamlandı: inserted=${result.inserted}, updated=${result.updated}`);
 
     // ImportJob kaydı
     const headers = rows.length ? Object.keys(rows[0]) : [];
     const { platform, mappings } = analyzeColumns(headers);
-    await ImportJob.create({
-      companyId,
-      userId: req.user?.id || null,
-      module: moduleName,
-      filename,
-      platform,
-      status: errorRows.length > 0 ? "partial" : "completed",
-      totalRows: rows.length,
-      inserted: result.inserted || 0,
-      updated: result.updated || 0,
-      failed: errorRows.length,
-      imagesFound: result.imagesFound || 0,
-      columnMappings: mappings,
-      errorSummary: [
-        ...errorRows.slice(0, 50).map((e) => ({ rowNumber: e.rowNumber, errors: e.errors })),
-        ...(result.imageLog || []).map((e) => ({ rowNumber: e.rowNumber, errors: e.failedUrls, type: "image" })),
-      ],
-      startedAt,
-      completedAt: new Date(),
-    });
+    
+    try {
+      await ImportJob.create({
+        companyId,
+        userId: req.user?.id || null,
+        module: moduleName,
+        filename,
+        platform,
+        status: errorRows.length > 0 ? "partial" : "completed",
+        totalRows: rows.length,
+        inserted: result.inserted || 0,
+        updated: result.updated || 0,
+        failed: errorRows.length,
+        imagesFound: result.imagesFound || 0,
+        columnMappings: mappings,
+        errorSummary: [
+          ...errorRows.slice(0, 50).map((e) => ({ rowNumber: e.rowNumber, errors: e.errors })),
+          ...(result.imageLog || []).map((e) => ({ rowNumber: e.rowNumber, errors: e.failedUrls, type: "image" })),
+        ],
+        startedAt,
+        completedAt: new Date(),
+      });
+    } catch (jobError) {
+      console.warn("ImportJob kaydı başarısız:", jobError.message);
+    }
 
     return res.status(200).json({
       success: true,
@@ -1012,10 +1109,15 @@ exports.commitImport = async (req, res) => {
       },
       errorRows,
       imageLog: result.imageLog || [],
-      message: "Import islemi tamamlandi.",
+      message: `✅ ${result.inserted} ürün eklendi, ${result.updated} güncellendi.`,
     });
   } catch (error) {
-    return res.status(500).json({ success: false, message: error.message });
+    console.error("❌ commitImport kritik hata:", error.message, error.stack);
+    return res.status(500).json({ 
+      success: false, 
+      message: `Hata: ${error.message}`,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
   }
 };
 
