@@ -32,7 +32,6 @@ function Navbar({ onMenuClick }) {
           }}
         >☰</button>
         <div>
-          <div style={{ fontSize: 12, textTransform: "uppercase", color: "var(--navbar-muted)", letterSpacing: "0.24em" }}>AKN Cloud</div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>Kurumsal ERP Paneli</div>
         </div>
       </div>

@@ -148,7 +148,6 @@ function Dashboard() {
   return (
     <Layout>
       <div style={{ background: "linear-gradient(135deg, #07111f 0%, #17324e 100%)", color: "#fff", padding: 24, borderRadius: 24, marginBottom: 20, boxShadow: "0 18px 40px rgba(7, 17, 31, 0.16)" }}>
-        <div style={{ fontSize: 12, letterSpacing: "0.26em", textTransform: "uppercase", opacity: 0.8 }}>AKN</div>
         <h1 style={{ margin: "8px 0 8px", fontSize: 30 }}>Hoş geldiniz, {user.name || "Kullanıcı"}</h1>
         <p style={{ margin: 0, opacity: 0.95, maxWidth: 700 }}>Satış, stok, cari hesap ve rapor akışlarını aynı anda takip ederek kurumsal operasyonları daha hızlı ve daha net yönetin.</p>
 

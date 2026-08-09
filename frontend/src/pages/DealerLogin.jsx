@@ -67,12 +67,11 @@ function DealerLogin() {
         }}
       >
         <div>
-          <div style={{ fontSize: 12, letterSpacing: "0.2em", color: "#0369a1", fontWeight: 700 }}>AKN CLOUD</div>
           {company?.logo ? (
             <img src={company.logo} alt="Firma Logosu" style={{ width: 66, height: 66, objectFit: "contain", marginTop: 10 }} />
           ) : null}
           <h2 style={{ marginTop: 8, marginBottom: 6 }}>Bayi Portali Giris</h2>
-          <p style={{ margin: 0, color: "#64748b" }}>{company?.companyName || "AKN Cloud"} - Kullanici adi ve sifreniz ile giris yapin.</p>
+          <p style={{ margin: 0, color: "#64748b" }}>Kullanici adi ve sifreniz ile giris yapin.</p>
         </div>
 
         <input

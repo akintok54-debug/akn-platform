@@ -37,7 +37,7 @@ function Register() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #07111f 0%, #17324e 100%)", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 480, background: "rgba(255,255,255,0.96)", borderRadius: 24, padding: 28, boxShadow: "0 24px 60px rgba(7, 17, 31, 0.22)" }}>
-        <div style={{ fontSize: 12, letterSpacing: "0.24em", textTransform: "uppercase", color: "#64748b", marginBottom: 8 }}>AKN Cloud</div>
+
         <h2 style={{ fontSize: 28, marginBottom: 8 }}>Firma Kaydı</h2>
         <p style={{ color: "#64748b", marginBottom: 20 }}>Kurumsal ERP'nizi bugün kurmaya başlayın.</p>
 

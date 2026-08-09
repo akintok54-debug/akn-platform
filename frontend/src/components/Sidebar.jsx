@@ -40,7 +40,6 @@ function Sidebar({ isOpen, onClose }) {
       }}
     >
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 12, letterSpacing: "0.24em", textTransform: "uppercase", color: "var(--sidebar-brand)", marginBottom: 6 }}>AKN Cloud</div>
         <div style={{ fontSize: 22, fontWeight: 800 }}>ERP Merkezi</div>
         <div style={{ fontSize: 13, color: "var(--sidebar-meta)", marginTop: 4 }}>Kurumsal operasyonlar tek panelde</div>
       </div>

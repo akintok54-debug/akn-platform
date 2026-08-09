@@ -178,7 +178,7 @@ function DealerPortal() {
       <html>
         <head><title>Hesap Ekstresi</title></head>
         <body style="font-family: Arial, sans-serif; padding: 20px">
-          <h2>AKN Cloud Bayi Hesap Ekstresi</h2>
+          <h2>Bayi Hesap Ekstresi</h2>
           <table border="1" cellspacing="0" cellpadding="8" width="100%">
             <thead>
               <tr>
@@ -238,7 +238,6 @@ function DealerPortal() {
     <div style={pageStyle}>
       <div style={headerStyle}>
         <div>
-          <div style={{ fontSize: 12, letterSpacing: "0.2em", color: "#0ea5e9", fontWeight: 700 }}>AKN CLOUD</div>
           <h2 style={{ margin: "8px 0 4px" }}>Bayi Portali</h2>
           <div style={{ color: "#64748b", fontSize: 14 }}>{companyName} • {dealerUser?.name || "Bayi"}</div>
         </div>
