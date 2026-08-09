@@ -332,12 +332,16 @@ function ImportCenter() {
         )}
 
         {validation?.summary && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 14 }}>
             <Stat title="Toplam Satır" value={validation.summary.totalRows} />
             <Stat title="Geçerli Satır" value={validation.summary.validRows} />
-            <Stat title="Hatalı Satır" value={validation.summary.failedRows} />
-            <Stat title="Eklendi" value={validation.summary.inserted ?? "-"} />
-            <Stat title="Güncellendi" value={validation.summary.updated ?? "-"} />
+            <Stat title="Hatalı Satır" value={validation.summary.failedRows} color="#dc2626" />
+            <Stat title="Eklendi" value={validation.summary.inserted ?? "-"} color="#16a34a" />
+            <Stat title="Güncellendi" value={validation.summary.updated ?? "-"} color="#2563eb" />
+            <Stat title="Resim Bulundu" value={validation.summary.imagesFound ?? "-"} color="#7c3aed" />
+            {(validation.summary.imageErrors ?? 0) > 0 && (
+              <Stat title="Resim Hatası" value={validation.summary.imageErrors} color="#dc2626" />
+            )}
           </div>
         )}
 
@@ -378,6 +382,21 @@ function ImportCenter() {
               emptyLabel="Hatalı satır yok."
             />
           </section>
+
+          {/* Resim hata logu */}
+          {(commitResult?.imageLog || []).length > 0 && (
+            <section style={{ ...cardStyle, borderColor: "#fca5a5" }}>
+              <h3 style={{ marginTop: 0, color: "#dc2626" }}>🖼 İndirilemeyen Resimler</h3>
+              <Table
+                columns={["Satır", "Ürün", "Hata"]}
+                rows={(commitResult.imageLog || []).map((item) => [item.rowNumber, item.name, (item.failedUrls || []).join(" | ")])}
+                emptyLabel=""
+              />
+              <div style={{ marginTop: 8, fontSize: 13, color: "#64748b" }}>
+                Not: Ürün verileri kaydedildi, yalnızca görseller eksik.
+              </div>
+            </section>
+          )}
 
           {commitResult?.summary ? (
             <section style={cardStyle}>
@@ -429,11 +448,11 @@ function ImportCenter() {
   );
 }
 
-function Stat({ title, value }) {
+function Stat({ title, value, color }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12 }}>
       <div style={{ fontSize: 12, color: "#64748b" }}>{title}</div>
-      <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800 }}>{String(value ?? "-")}</div>
+      <div style={{ marginTop: 6, fontSize: 22, fontWeight: 800, color: color || "#0f172a" }}>{String(value ?? "-")}</div>
     </div>
   );
 }

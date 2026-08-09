@@ -5,6 +5,7 @@ const Customer = require("../models/customer");
 const AccountTransaction = require("../models/AccountTransaction");
 const StockMovement = require("../models/StockMovement");
 const ImportJob = require("../models/ImportJob");
+const { processImageUrls } = require("../services/imageService");
 const { normalizeCustomerPayload } = require("../utils/customerUtils");
 
 const MAX_ROWS = 5000;
@@ -629,20 +630,53 @@ const validateByModule = async ({ moduleName, rows, companyId }) => {
 
 const commitProducts = async ({ validRows, companyId }) => {
   let imagesFound = 0;
-  const operations = validRows.map((item) => {
-    const row = item.normalized;
-    const { _imageUrls, ...rowData } = row;
-    if (_imageUrls && _imageUrls.length > 0) imagesFound++;
-    const filter = row.barcode
-      ? { company: companyId, barcode: row.barcode }
-      : row.sku
-      ? { company: companyId, sku: row.sku }
-      : { company: companyId, name: row.name };
+  let imageErrors = 0;
+  const imageLog = [];
+
+  // Resim işleme: her satır için paralel URL kontrolü + Cloudinary upload
+  const processedRows = await Promise.all(
+    validRows.map(async (item) => {
+      const { _imageUrls, ...rowData } = item.normalized;
+      if (!_imageUrls || _imageUrls.length === 0) return { rowData, item };
+
+      imagesFound++;
+      const results = await processImageUrls(_imageUrls);
+      const successful = results.filter((r) => r.ok).map((r) => r.url);
+      const failed = results.filter((r) => !r.ok);
+
+      if (failed.length > 0) {
+        imageErrors += failed.length;
+        imageLog.push({
+          rowNumber: item.rowNumber,
+          name: rowData.name,
+          failedUrls: failed.map((f) => `${f.url}: ${f.reason}`),
+        });
+      }
+
+      rowData.image = successful[0] || rowData.image || "";
+      rowData.images = successful;
+
+      return { rowData, item };
+    })
+  );
+
+  // Duplicate kontrolü: barkod → sku → ürün adı sırasıyla
+  const operations = processedRows.map(({ rowData }) => {
+    const filter = rowData.barcode
+      ? { company: companyId, barcode: rowData.barcode }
+      : rowData.sku
+      ? { company: companyId, sku: rowData.sku }
+      : { company: companyId, name: rowData.name };
+
+    // Mevcut görselleri silme: sadece yeni görseller varsa güncelle
+    const updateFields = { ...rowData, company: companyId };
+    if (!rowData.image) delete updateFields.image;
+    if (!rowData.images || rowData.images.length === 0) delete updateFields.images;
 
     return {
       updateOne: {
         filter,
-        update: { $set: { ...rowData, company: companyId } },
+        update: { $set: updateFields },
         upsert: true,
       },
     };
@@ -653,6 +687,8 @@ const commitProducts = async ({ validRows, companyId }) => {
     inserted: result.upsertedCount || 0,
     updated: result.modifiedCount || 0,
     imagesFound,
+    imageErrors,
+    imageLog,
   };
 };
 
@@ -953,7 +989,10 @@ exports.commitImport = async (req, res) => {
       failed: errorRows.length,
       imagesFound: result.imagesFound || 0,
       columnMappings: mappings,
-      errorSummary: errorRows.slice(0, 50).map((e) => ({ rowNumber: e.rowNumber, errors: e.errors })),
+      errorSummary: [
+        ...errorRows.slice(0, 50).map((e) => ({ rowNumber: e.rowNumber, errors: e.errors })),
+        ...(result.imageLog || []).map((e) => ({ rowNumber: e.rowNumber, errors: e.failedUrls, type: "image" })),
+      ],
       startedAt,
       completedAt: new Date(),
     });
@@ -969,8 +1008,10 @@ exports.commitImport = async (req, res) => {
         inserted: result.inserted,
         updated: result.updated,
         imagesFound: result.imagesFound || 0,
+        imageErrors: result.imageErrors || 0,
       },
       errorRows,
+      imageLog: result.imageLog || [],
       message: "Import islemi tamamlandi.",
     });
   } catch (error) {
