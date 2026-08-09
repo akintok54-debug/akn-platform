@@ -49,6 +49,7 @@ const activityLogRoutes = require("./routes/activityLogRoutes");
 const masterDataRoutes = require("./routes/masterDataRoutes");
 const dealerPortalRoutes = require("./routes/dealerPortalRoutes");
 const importRoutes = require("./routes/importRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 // Rota gruplarını bağlıyoruz
 app.use("/api/auth", authRoutes);
@@ -68,6 +69,7 @@ app.use("/api/activity-logs", activityLogRoutes);
 app.use("/api/master", masterDataRoutes);
 app.use("/api/dealer", dealerPortalRoutes);
 app.use("/api/imports", importRoutes);
+app.use("/api/reports", reportRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

@@ -241,9 +241,14 @@ const Customers = () => {
             <h2 style={{ margin: 0 }}>Müşteriler</h2>
             <p style={{ margin: '6px 0 0', opacity: 0.95 }}>Profesyonel cari yönetimi, modern tablo görünümü ve hızlı filtreleme.</p>
           </div>
-          <button onClick={openCreate} style={{ padding: '10px 16px', border: 'none', borderRadius: 999, cursor: 'pointer', background: '#fff', color: '#0f172a', fontWeight: 700 }}>
-            + Yeni Müşteri
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={openCreate} style={{ padding: '10px 16px', border: 'none', borderRadius: 999, cursor: 'pointer', background: '#fff', color: '#0f172a', fontWeight: 700 }}>
+              + Yeni Müşteri
+            </button>
+            <button onClick={() => navigate('/reports/customers')} style={{ padding: '10px 16px', border: 'none', borderRadius: 999, cursor: 'pointer', background: '#10b981', color: '#fff', fontWeight: 700 }}>
+              📊 Cari Raporu
+            </button>
+          </div>
         </div>
       </div>
 

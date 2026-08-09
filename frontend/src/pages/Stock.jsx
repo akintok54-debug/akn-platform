@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import api from "../services/api";
 
@@ -9,6 +10,7 @@ const MOVEMENT_TYPES = [
 ];
 
 function Stock() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -290,10 +292,15 @@ function Stock() {
   return (
     <Layout>
       <div style={{ display: "grid", gap: 16 }}>
-        <div style={{ background: "linear-gradient(135deg, #0b132b 0%, #1c4e80 100%)", color: "#fff", borderRadius: 20, padding: 22 }}>
-          <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.85 }}>Stok Modülü</div>
-          <h2 style={{ margin: "8px 0" }}>Stok Giriş, Çıkış, Sayım ve Depo Yönetimi</h2>
-          <p style={{ margin: 0, opacity: 0.95 }}>Kritik stokları takip edin, hareket geçmişini izleyin ve depo bazlı operasyonları yönetin.</p>
+        <div style={{ background: "linear-gradient(135deg, #0b132b 0%, #1c4e80 100%)", color: "#fff", borderRadius: 20, padding: 22, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.85 }}>Stok Modülü</div>
+            <h2 style={{ margin: "8px 0" }}>Stok Giriş, Çıkış, Sayım ve Depo Yönetimi</h2>
+            <p style={{ margin: 0, opacity: 0.95 }}>Kritik stokları takip edin, hareket geçmişini izleyin ve depo bazlı operasyonları yönetin.</p>
+          </div>
+          <button onClick={() => navigate('/reports/stock')} style={{ padding: "10px 16px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}>
+            📊 Stok Raporu
+          </button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>

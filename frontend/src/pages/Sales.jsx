@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const Sales = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const presetCustomerId = searchParams.get('customerId') || '';
   const presetCustomerName = searchParams.get('customerName') || '';
@@ -171,6 +172,15 @@ const Sales = () => {
       <div style={{ background: 'linear-gradient(135deg, #07111f 0%, #17324e 100%)', color: '#fff', padding: 20, borderRadius: 20, marginBottom: 20 }}>
         <h2 style={{ margin: 0 }}>Profesyonel Satış Ekranı</h2>
         <p style={{ margin: '6px 0 0', opacity: 0.95 }}>Barkod ile hızlı ekleme, ürün arama, kart ve cari satış akışı tek panelde.</p>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        <button onClick={() => navigate('/sales')} style={{ padding: '10px 16px', background: '#4caf50', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+          + Yeni Satış
+        </button>
+        <button onClick={() => navigate('/reports/sales')} style={{ padding: '10px 16px', background: '#2196f3', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+          📊 Satış Raporu
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 20, marginTop: 20 }}>

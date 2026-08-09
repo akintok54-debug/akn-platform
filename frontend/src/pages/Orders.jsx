@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import api from "../services/api";
 
@@ -12,6 +13,7 @@ const STATUS_OPTIONS = [
 const ADMIN_ROLES = new Set(["owner", "admin", "manager"]);
 
 function Orders() {
+  const navigate = useNavigate();
   const user = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
@@ -173,9 +175,14 @@ function Orders() {
   return (
     <Layout>
       <div style={{ display: "grid", gap: 18 }}>
-        <div style={{ background: "linear-gradient(135deg, #0b1b31 0%, #134e4a 100%)", color: "#fff", borderRadius: 20, padding: 22 }}>
-          <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.2em", opacity: 0.8 }}>Sipariş Modülü</div>
-          <h2 style={{ margin: "6px 0 0" }}>Ürün ara, sepete ekle, siparişi tamamla</h2>
+        <div style={{ background: "linear-gradient(135deg, #0b1b31 0%, #134e4a 100%)", color: "#fff", borderRadius: 20, padding: 22, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.2em", opacity: 0.8 }}>Sipariş Modülü</div>
+            <h2 style={{ margin: "6px 0 0" }}>Ürün ara, sepete ekle, siparişi tamamla</h2>
+          </div>
+          <button onClick={() => navigate('/reports/orders')} style={{ padding: "10px 16px", background: "#10b981", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+            📊 Sipariş Raporu
+          </button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>

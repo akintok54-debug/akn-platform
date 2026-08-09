@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 function Products() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [form, setForm] = useState({
     name: "",
@@ -100,7 +102,20 @@ function Products() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2 style={{ marginBottom: "20px", color: "#111827" }}>📦 Ürün ve Stok Yönetimi</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ margin: 0, color: "#111827" }}>📦 Ürün ve Stok Yönetimi</h2>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={() => navigate('/products')} style={{ padding: "8px 14px", background: "#4caf50", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
+            + Yeni Ürün
+          </button>
+          <button onClick={() => navigate('/reports/products')} style={{ padding: "8px 14px", background: "#2196f3", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
+            📊 Ürün Raporu
+          </button>
+          <button onClick={() => navigate('/reports/stock')} style={{ padding: "8px 14px", background: "#ff9800", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}>
+            📦 Stok Raporu
+          </button>
+        </div>
+      </div>
 
       <div style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", boxShadow: "0 2px 4px rgba(0,0,0,0.05)", marginBottom: "30px" }}>
         <h3 style={{ marginBottom: "15px", color: "#374151" }}>Yeni Yedek Parça / Ürün Ekle</h3>
