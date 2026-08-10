@@ -18,7 +18,11 @@ export const canAccessModule = (moduleName) => {
   const user = getStoredUser();
   if (!user) return false;
 
-  if (user.role === 'owner' || user.role === 'admin') return true;
+ if (
+  user.role === 'owner' ||
+  user.role === 'admin' ||
+  user.role === 'SUPER_ADMIN'
+) return true;
 
   const permissions = getStoredPermissions();
   return permissions[moduleName] === true;
