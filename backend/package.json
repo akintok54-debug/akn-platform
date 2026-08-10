@@ -26,7 +26,11 @@
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0",
     "mongoose": "^8.16.5",
+    "nodemailer": "^7.0.6",
     "pdfkit": "^0.17.2",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.2.0"
   }
 }

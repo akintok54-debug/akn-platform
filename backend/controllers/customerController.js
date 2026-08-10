@@ -655,7 +655,7 @@ module.exports = {
       const pdf = new PDFDocument({ size: "A4", margin: 40 });
       pdf.pipe(res);
 
-      pdf.fontSize(20).text("AKN Cloud ERP - Cari Hesap Ekstresi");
+      pdf.fontSize(20).text("AKN - Cari Hesap Ekstresi");
       pdf.moveDown();
       pdf.fontSize(11).text(`Firma: ${company?.companyName || "-"}`);
       pdf.text(`Musteri: ${customer.companyName || customer.name || "-"}`);
@@ -819,7 +819,7 @@ module.exports = {
       if (!customer) return res.status(404).json({ success: false, message: "Musteri bulunamadi." });
 
       const companyName = customer.companyName || customer.name || "Firma";
-      const message = `Merhaba Sayin ${companyName}\n\nGuncel cari hesap bakiyeniz bulunmaktadir.\nDetayli hesap ekstreniz ektedir.\nBilgi almak isterseniz bizimle iletisime gecebilirsiniz.\n\nIyi calismalar.\n\nAKN Cloud ERP`;
+      const message = `Merhaba Sayin ${companyName}\n\nGuncel cari hesap bakiyeniz bulunmaktadir.\nDetayli hesap ekstreniz ektedir.\nBilgi almak isterseniz bizimle iletisime gecebilirsiniz.\n\nIyi calismalar.\n\nAKN`;
 
       await NotificationHistory.create({
         companyId,

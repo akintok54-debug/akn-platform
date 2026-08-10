@@ -300,6 +300,7 @@ const Customers = () => {
             <CustomerTable
               customers={pagedCustomers}
               onView={(id) => navigate(`/customers/${id}`)}
+              onSale={(customer) => navigate(`/sales?customerId=${customer._id || customer.id}&customerName=${encodeURIComponent(customer.companyName || customer.name || '')}`)}
               onEdit={openEdit}
               onDelete={handleDelete}
               selectedCustomerIds={selectedCustomerIds}

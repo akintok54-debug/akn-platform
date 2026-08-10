@@ -3,7 +3,21 @@ const Product = require("../models/Product");
 const getCompanyId = (req) => req.user?.company || req.user?.companyId || null;
 
 // Satış temsilcisine gizlenecek maliyet alanları
-const COST_FIELDS = ['purchasePrice', 'oemCode'];
+const COST_FIELDS = ['purchasePrice', 'purchasePriceUnit', 'purchasePriceBox', 'purchasePriceMode', 'oemCode'];
+
+const getCloudinary = () => {
+  const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME || "").trim();
+  const apiKey = String(process.env.CLOUDINARY_API_KEY || "").trim();
+  const apiSecret = String(process.env.CLOUDINARY_API_SECRET || "").trim();
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    return null;
+  }
+
+  const { v2 } = require("cloudinary");
+  v2.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+  return v2;
+};
 
 const stripCostFields = (product) => {
   const p = { ...product };
@@ -12,6 +26,46 @@ const stripCostFields = (product) => {
 };
 
 const isSalesRole = (req) => req.user?.role === 'sales';
+
+const uploadProductImage = async (req, res) => {
+  try {
+    const imageData = String(req.body?.imageData || "").trim();
+
+    if (!imageData || !imageData.startsWith("data:image/")) {
+      return res.status(400).json({ success: false, message: "Gecerli bir resim verisi gerekli." });
+    }
+
+    if (imageData.length > 15 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: "Resim boyutu cok buyuk." });
+    }
+
+    const cloudinary = getCloudinary();
+
+    if (!cloudinary) {
+      return res.status(200).json({
+        success: true,
+        url: imageData,
+        source: "inline-data",
+      });
+    }
+
+    const upload = await cloudinary.uploader.upload(imageData, {
+      folder: "akn-products",
+      resource_type: "image",
+      unique_filename: true,
+      overwrite: false,
+    });
+
+    return res.status(200).json({
+      success: true,
+      url: upload?.secure_url || "",
+      publicId: upload?.public_id || "",
+      source: "cloudinary",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 // Yeni ürün oluştur
 const createProduct = async (req, res) => {
@@ -335,6 +389,7 @@ const getProductStats = async (req, res) => {
 
 module.exports = {
   createProduct,
+  uploadProductImage,
   getProducts,
   getProductById,
   updateProduct,

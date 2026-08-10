@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken } = require('../middleware/authMiddleware');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const {
 	getProfiles,
 	getUsers,
@@ -8,6 +8,7 @@ const {
 	updateProfile,
 	assignProfileToUser,
 	getRoleOptions,
+	generateInviteLink,
 	createUser,
 	updateUserRole,
 } = require('../controllers/permissionController');
@@ -16,6 +17,7 @@ router.use(verifyToken);
 router.get('/', getProfiles);
 router.get('/roles', getRoleOptions);
 router.get('/users', getUsers);
+router.post('/invite-link', verifyAdmin, generateInviteLink);
 router.post('/users', createUser);
 router.put('/users/:id', updateUserRole);
 router.post('/', createProfile);

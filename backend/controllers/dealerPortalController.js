@@ -500,7 +500,7 @@ exports.downloadInvoicePdf = async (req, res) => {
     const pdf = new PDFDocument({ size: "A4", margin: 40 });
     pdf.pipe(res);
 
-    pdf.fontSize(20).text("AKN Cloud ERP - Bayi Faturasi");
+    pdf.fontSize(20).text("AKN - Bayi Faturasi");
     pdf.moveDown();
     pdf.fontSize(12).text(`Fatura No: ${invoice.invoiceNumber || "-"}`);
     pdf.text(`Fatura Tipi: ${invoice.invoiceType}`);
@@ -560,7 +560,7 @@ exports.downloadStatementPdf = async (req, res) => {
     const pdf = new PDFDocument({ size: "A4", margin: 40 });
     pdf.pipe(res);
 
-    pdf.fontSize(20).fillColor("#0f172a").text("AKN Cloud ERP - Cari Hesap Ekstresi");
+    pdf.fontSize(20).fillColor("#0f172a").text("AKN - Cari Hesap Ekstresi");
     pdf.moveDown(0.4);
 
     pdf.fontSize(11).fillColor("#334155");
@@ -665,7 +665,7 @@ exports.createStatementWhatsAppShare = async (req, res) => {
         userId: user._id,
         type: "DUYURU",
         title: "Cari Ekstre Hazir",
-        message: `${company?.companyName || "AKN Cloud"} cari ekstreniz WhatsApp paylasimina hazir.`,
+        message: `${company?.companyName || "AKN"} cari ekstreniz WhatsApp paylasimina hazir.`,
         sourceModule: "dealer-portal",
       }),
     ]);

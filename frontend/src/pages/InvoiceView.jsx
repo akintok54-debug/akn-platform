@@ -98,6 +98,8 @@ const InvoiceView = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
         }}
       >
         <div>
@@ -124,7 +126,7 @@ const InvoiceView = () => {
       </div>
 
       {/* TOOLBAR */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <button
           onClick={handlePrint}
           style={{
@@ -181,17 +183,17 @@ const InvoiceView = () => {
         }}
       >
         {/* BAŞLIK BÖLÜMÜ */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 32, borderBottom: '2px solid #1f2937', paddingBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 32, marginBottom: 32, borderBottom: '2px solid #1f2937', paddingBottom: 20 }}>
           {/* ŞİRKET */}
           <div>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#1f2937', marginBottom: 8 }}>
-              AKN PLATFORM
+              AKN
             </div>
             <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
               <div>Vergi No: 1234567890</div>
               <div>Adres: İstanbul, TR</div>
               <div>Tel: +90 (555) 123-45-67</div>
-              <div>Email: info@aknplatform.com</div>
+              <div>Email: info@akn.com</div>
             </div>
           </div>
 
@@ -237,6 +239,7 @@ const InvoiceView = () => {
 
         {/* ÜRÜNLER TABLOSU */}
         <div style={{ marginBottom: 24 }}>
+          <div className="table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #1f2937' }}>
@@ -296,10 +299,11 @@ const InvoiceView = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* TOPLAM BÖLÜMÜ */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 32, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32, marginBottom: 24 }}>
           <div>{/* Notlar bölümü */}</div>
 
           {/* TOPLAM HESAPLARI */}
@@ -361,7 +365,7 @@ const InvoiceView = () => {
           <div style={{ fontWeight: 600, color: '#1f2937', marginBottom: 8 }}>
             Ödeme Durumu
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
             <div>
               <div style={{ color: '#6b7280', fontSize: 11 }}>Ödenen Tutar</div>
               <div style={{ fontWeight: 600, color: '#16a34a' }}>
@@ -413,7 +417,7 @@ const InvoiceView = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
             gap: 32,
             marginTop: 40,
             paddingTop: 32,
@@ -441,6 +445,7 @@ const InvoiceView = () => {
       {payments.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}>
           <h3 style={{ margin: '0 0 12px' }}>📋 Ödeme Geçmişi</h3>
+          <div className="table-scroll">
           <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f3f4f6' }}>
@@ -465,6 +470,7 @@ const InvoiceView = () => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -490,7 +496,7 @@ const InvoiceView = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                   Yöntem

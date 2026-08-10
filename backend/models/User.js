@@ -21,6 +21,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     password: {
       type: String,
       required: true,
@@ -28,7 +34,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["owner", "admin", "manager", "sales", "cashier", "accounting", "dealer"],
+      enum: ["SUPER_ADMIN", "owner", "admin", "manager", "sales", "cashier", "accounting", "dealer"],
       default: "owner",
     },
 

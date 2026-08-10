@@ -1,11 +1,11 @@
-# 🏢 AKN CLOUD ERP - Kurumsal Yönetim Sistemi
+# 🏢 AKN - Yönetim Sistemi
 
 [![Node.js](https://img.shields.io/badge/Node.js-v20%2B-green)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-18%2B-blue)](https://react.dev)
 [![MongoDB](https://img.shields.io/badge/MongoDB-6%2B-green)](https://www.mongodb.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-Tamamen **bağımsız**, **açık kaynak** ve **üretim hazır** kurumsal ERP sistemi. Müşteri yönetimi, satış, stok, muhasebe ve fatura akışlarını güçlü arayüzle yönetin.
+Tamamen **bağımsız**, **açık kaynak** ve **üretim hazır** yönetim sistemi. Müşteri yönetimi, satış, stok, muhasebe ve fatura akışlarını güçlü arayüzle yönetin.
 
 ---
 

@@ -125,9 +125,116 @@ body {
   overflow-x: hidden;
 }
 
+.app-sidebar-backdrop {
+  display: none;
+}
+
+.responsive-two-col {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.sidebar-auth-panel {
+  display: block;
+}
+
 @media (max-width: 900px) {
   body {
     font-size: 14px;
+  }
+
+  .app-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.45);
+    z-index: 999;
+  }
+
+  .app-shell {
+    display: block !important;
+  }
+
+  .app-main {
+    padding: 12px !important;
+  }
+
+  .app-main table {
+    min-width: 640px;
+  }
+
+  .app-main th,
+  .app-main td {
+    font-size: 12px;
+  }
+
+  .app-main button,
+  .app-main input,
+  .app-main select,
+  .app-main textarea {
+    min-height: 42px;
+  }
+
+  .responsive-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .app-main-inner {
+    max-width: 100% !important;
+  }
+
+  .app-sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    width: min(86vw, 320px) !important;
+    min-height: 100vh !important;
+    z-index: 1000 !important;
+    box-shadow: 20px 0 40px rgba(0, 0, 0, 0.28) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .navbar-brand {
+    gap: 10px !important;
+  }
+
+  .navbar-brand-text {
+    display: none;
+  }
+
+  .navbar-user {
+    display: none;
+  }
+
+}
+
+@media (min-width: 901px) {
+  .sidebar-close-btn {
+    display: none;
   }
 }
 

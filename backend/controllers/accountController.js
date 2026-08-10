@@ -2,11 +2,16 @@ const Account = require("../models/Account");
 const AccountTransaction = require("../models/AccountTransaction");
 const Customer = require("../models/customer");
 const Invoice = require("../models/lnvoice");
+const { getCompanyId } = require("../utils/tenantScope");
 
 exports.createAccount = async (req, res) => {
   try {
     const { name, type, currency, balance } = req.body;
-    const companyId = req.user?.companyId || null;
+    const companyId = getCompanyId(req);
+
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     const accountData = {
       name,
@@ -27,7 +32,12 @@ exports.createAccount = async (req, res) => {
 
 exports.getAccounts = async (req, res) => {
   try {
-    const filter = req.user?.companyId ? { companyId: req.user.companyId } : {};
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const filter = { companyId };
     const accounts = await Account.find(filter);
     res.status(200).json(accounts);
   } catch (error) {
@@ -38,7 +48,16 @@ exports.getAccounts = async (req, res) => {
 exports.createTransaction = async (req, res) => {
   try {
     const { accountId, customerId, type, amount, description } = req.body;
-    const companyId = req.user?.companyId || null;
+    const companyId = getCompanyId(req);
+
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const account = await Account.findOne({ _id: accountId, companyId });
+    if (!account) {
+      return res.status(404).json({ success: false, message: "Hesap bulunamadi." });
+    }
 
     const transaction = new AccountTransaction({
       companyId,
@@ -49,18 +68,15 @@ exports.createTransaction = async (req, res) => {
     });
     await transaction.save();
 
-    const account = await Account.findById(accountId);
-    if (account) {
-      if (type === 'ALACAK') {
-        account.balance += Number(amount || 0);
-      } else if (type === 'BORC') {
-        account.balance -= Number(amount || 0);
-      }
-      await account.save();
+    if (type === 'ALACAK') {
+      account.balance += Number(amount || 0);
+    } else if (type === 'BORC') {
+      account.balance -= Number(amount || 0);
     }
+    await account.save();
 
     if (customerId) {
-      const customer = await Customer.findById(customerId);
+      const customer = await Customer.findOne({ _id: customerId, company: companyId });
       if (customer) {
         if (type === 'ALACAK') {
           customer.balance = (customer.balance || 0) - Number(amount || 0);
@@ -80,8 +96,12 @@ exports.createTransaction = async (req, res) => {
 exports.deleteAccount = async (req, res) => {
   try {
     const { id } = req.params;
-    const filter = { _id: id };
-    if (req.user?.companyId) filter.companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const filter = { _id: id, companyId };
 
     const account = await Account.findOne(filter);
     if (!account) {
@@ -95,7 +115,7 @@ exports.deleteAccount = async (req, res) => {
       });
     }
 
-    const transactionCount = await AccountTransaction.countDocuments({ companyId: req.user?.companyId || null });
+    const transactionCount = await AccountTransaction.countDocuments({ companyId });
     if (transactionCount > 0) {
       return res.status(400).json({ 
         success: false, 
@@ -103,7 +123,7 @@ exports.deleteAccount = async (req, res) => {
       });
     }
 
-    await Account.findByIdAndDelete(id);
+    await Account.deleteOne({ _id: id, companyId });
     res.status(200).json({ success: true, message: "Hesap silindi." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -113,15 +133,19 @@ exports.deleteAccount = async (req, res) => {
 exports.getAccountTransactions = async (req, res) => {
   try {
     const { id } = req.params;
-    const filter = { _id: id };
-    if (req.user?.companyId) filter.companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const filter = { _id: id, companyId };
 
     const account = await Account.findOne(filter);
     if (!account) {
       return res.status(404).json({ success: false, message: "Hesap bulunamadı." });
     }
 
-    const transactions = await AccountTransaction.find({ companyId: req.user?.companyId || null })
+    const transactions = await AccountTransaction.find({ companyId })
       .populate("customerId", "companyName name")
       .sort({ createdAt: -1 });
 
@@ -133,7 +157,12 @@ exports.getAccountTransactions = async (req, res) => {
 
 exports.getCashReport = async (req, res) => {
   try {
-    const accounts = await Account.find(req.user?.companyId ? { companyId: req.user.companyId } : {});
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const accounts = await Account.find({ companyId });
     const balance = accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0);
     res.status(200).json({ success: true, balance, accounts });
   } catch (error) {
@@ -143,7 +172,12 @@ exports.getCashReport = async (req, res) => {
 
 exports.getRecentTransactions = async (req, res) => {
   try {
-    const filter = req.user?.companyId ? { companyId: req.user.companyId } : {};
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const filter = { companyId };
     const transactions = await AccountTransaction.find(filter)
       .populate("customerId", "companyName name")
       .sort({ createdAt: -1 })
@@ -158,10 +192,15 @@ exports.getRecentTransactions = async (req, res) => {
 exports.getCustomerStatement = async (req, res) => {
   try {
     const { customerId } = req.params;
-    const transactions = await AccountTransaction.find({ customerId, companyId: req.user?.companyId || null })
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    const transactions = await AccountTransaction.find({ customerId, companyId })
       .sort({ createdAt: -1 });
-    const customer = await Customer.findById(customerId);
-    const invoices = await Invoice.find({ customerId, companyId: req.user?.companyId || null }).sort({ createdAt: -1 });
+    const customer = await Customer.findOne({ _id: customerId, company: companyId });
+    const invoices = await Invoice.find({ customerId, companyId }).sort({ createdAt: -1 });
     res.status(200).json({ success: true, customer, transactions, invoices });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

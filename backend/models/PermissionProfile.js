@@ -10,6 +10,7 @@ const permissionProfileSchema = new mongoose.Schema({
   role: { type: String, default: 'sales' },
   permissions: {
     customers: { type: Boolean, default: true },
+    suppliers: { type: Boolean, default: true },
     products: { type: Boolean, default: true },
     sales: { type: Boolean, default: true },
     invoices: { type: Boolean, default: true },

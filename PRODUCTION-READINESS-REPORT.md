@@ -1,4 +1,4 @@
-# AKN Cloud ERP Production Hazirlik Raporu
+# AKN Production Hazirlik Raporu
 
 Tarih: 2026-08-07
 

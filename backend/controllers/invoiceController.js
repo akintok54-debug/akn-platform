@@ -6,6 +6,8 @@ const Product = require("../models/Product");
 const Company = require("../models/company");
 const AccountingReport = require("../models/AccountingReport");
 
+const getCompanyId = (req) => req.user?.companyId || req.user?.company || null;
+
 // ✅ 1. FATURA OLUŞTUR
 exports.createInvoice = async (req, res) => {
   try {
@@ -18,10 +20,10 @@ exports.createInvoice = async (req, res) => {
       dueDate = null,
       paymentMethod = "CASH",
     } = req.body;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
 
     // Müşteri kontrolü
-    const customer = await Customer.findOne({ _id: customerId, companyId });
+    const customer = await Customer.findOne({ _id: customerId, company: companyId });
     if (!customer) {
       return res
         .status(404)
@@ -164,7 +166,7 @@ exports.createInvoice = async (req, res) => {
 // ✅ 2. FATURALARI LİSTELE
 exports.getInvoices = async (req, res) => {
   try {
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
     const {
       status,
       paymentStatus,
@@ -211,7 +213,7 @@ exports.getInvoices = async (req, res) => {
 exports.getInvoiceById = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
 
     const invoice = await Invoice.findOne({ _id: id, companyId }).populate([
       { path: "customerId", select: "companyName name email phone address" },
@@ -246,7 +248,7 @@ exports.recordPayment = async (req, res) => {
   try {
     const { invoiceId } = req.params;
     const { amount, method, referenceNo, note } = req.body;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
 
     const invoice = await Invoice.findOne({ _id: invoiceId, companyId });
     if (!invoice) {
@@ -310,7 +312,7 @@ exports.cancelInvoice = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
 
     const invoice = await Invoice.findOne({ _id: id, companyId });
     if (!invoice) {
@@ -347,7 +349,7 @@ exports.cancelInvoice = async (req, res) => {
 exports.sendInvoiceToGIB = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
 
     const invoice = await Invoice.findOne({ _id: id, companyId });
     if (!invoice) {
@@ -388,7 +390,7 @@ exports.sendInvoiceToGIB = async (req, res) => {
 // ✅ 7. MUHASEBE RAPORLARI
 exports.getAccountingReport = async (req, res) => {
   try {
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
     const { reportType, startDate, endDate } = req.query;
 
     const start = new Date(startDate || new Date().setDate(1));

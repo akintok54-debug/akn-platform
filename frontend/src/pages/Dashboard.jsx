@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+İmport React, { useEffect, useMemo, useState } from "react";
 import Layout from "../components/Layout";
 import StatCard from "../components/ui/StatCard";
 import QuickActionCard from "../components/ui/QuickActionCard";
@@ -155,10 +155,10 @@ function Dashboard() {
           </div>
           <div style={{ textAlign: 'right', opacity: 0.9, fontSize: 11 }}>
             <div style={{ fontStyle: 'italic', marginBottom: 4 }}>Powered by</div>
-            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '2px', marginBottom: 6 }}>BAHADIR AKIN</div>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '2px', marginBottom: 6 }}>AKN</div>
             <svg width="120" height="40" viewBox="0 0 120 40" style={{ margin: 0 }}>
               <path d="M 10 20 Q 30 10 50 20 T 90 20" stroke="currentColor" fill="none" strokeWidth="1.5" opacity="0.6" />
-              <text x="60" y="28" fontSize="9" fill="currentColor" textAnchor="middle" opacity="0.7" fontStyle="italic">© Enterprise</text>
+              <text x="60" y="28" fontSize="9" fill="currentColor" textAnchor="middle" opacity="0.7" fontStyle="italic">© AKN</text>
             </svg>
           </div>
         </div>

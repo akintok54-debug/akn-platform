@@ -96,6 +96,39 @@ const companySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    subscriptionStatus: {
+      type: String,
+      enum: ["TRIAL", "ACTIVE", "PASSIVE"],
+      default: "TRIAL",
+      index: true,
+    },
+    trialStartedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    trialEndsAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      index: true,
+    },
+    monthlyPrice: {
+      type: Number,
+      default: 2500,
+      min: 0,
+    },
+    lastPaymentAt: {
+      type: Date,
+      default: null,
+    },
+    subscriptionStartedAt: {
+      type: Date,
+      default: null,
+    },
+    subscriptionEndsAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,

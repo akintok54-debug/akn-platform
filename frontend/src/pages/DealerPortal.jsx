@@ -226,12 +226,28 @@ function DealerPortal() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("dealerToken");
-    sessionStorage.removeItem("dealerToken");
-    localStorage.removeItem("dealerUser");
-    localStorage.removeItem("dealerCompanyName");
-    navigate("/dealer/login");
+  const handleLogout = async () => {
+    const token = localStorage.getItem("dealerToken") || sessionStorage.getItem("dealerToken");
+
+    try {
+      if (token) {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      localStorage.removeItem("dealerToken");
+      sessionStorage.removeItem("dealerToken");
+      localStorage.removeItem("dealerUser");
+      localStorage.removeItem("dealerCompanyName");
+      navigate("/dealer/login");
+    }
   };
 
   return (

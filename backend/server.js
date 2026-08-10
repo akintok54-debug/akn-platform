@@ -33,7 +33,12 @@ app.use(express.json());
 app.use(activityLogMiddleware);
 
 app.get("/api/health", (req, res) => {
-  res.json({ success: true, message: "AKN Cloud ERP API çalışıyor." });
+  res.json({
+    success: true,
+    message: "AKN Cloud ERP API çalışıyor.",
+    database: process.env.MONGO_URI && !/your_username|your_password|your_cluster/i.test(process.env.MONGO_URI) ? "configured" : "fallback",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Rotaları tanımlıyoruz
@@ -55,6 +60,8 @@ const masterDataRoutes = require("./routes/masterDataRoutes");
 const dealerPortalRoutes = require("./routes/dealerPortalRoutes");
 const importRoutes = require("./routes/importRoutes");
 const reportRoutes = require("./routes/reportRoutes");
+const supplierRoutes = require("./routes/supplierRoutes");
+const superAdminRoutes = require("./routes/superAdminRoutes");
 
 // Rota gruplarını bağlıyoruz
 app.use("/api/auth", authRoutes);
@@ -75,6 +82,8 @@ app.use("/api/master", masterDataRoutes);
 app.use("/api/dealer", dealerPortalRoutes);
 app.use("/api/imports", importRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/super-admin", superAdminRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
@@ -82,8 +91,12 @@ const DEFAULT_PORT = Number(process.env.PORT || 5000);
 
 const startServer = async ({ port = DEFAULT_PORT } = {}) => {
   try {
-    await connectDatabase();
-    console.log("✅ MongoDB veritabanına başarıyla bağlandı.");
+    const databaseConnected = await connectDatabase();
+    if (databaseConnected) {
+      console.log("✅ MongoDB veritabanına başarıyla bağlandı.");
+    } else {
+      console.log("⚠️ MongoDB bağlantısı kurulmadı; uygulama veri katmanı olmadan çalışıyor.");
+    }
 
     const server = await new Promise((resolve, reject) => {
       const httpServer = app.listen(port, () => {

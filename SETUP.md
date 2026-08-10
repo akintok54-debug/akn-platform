@@ -1,6 +1,6 @@
-# 🏢 AKN CLOUD ERP - Kurumsal Yönetim Sistemi
+# 🏢 AKN - Yönetim Sistemi
 
-Tamamen bağımsız, açık kaynak, üretim hazırı kurumsal ERP sistemi.
+Tamamen bağımsız, açık kaynak, üretim hazırı yönetim sistemi.
 
 ---
 
@@ -496,7 +496,7 @@ VITE_API_PROXY_TARGET=http://localhost:5000
 VITE_MODE=production
 
 # Uygulama ayarları
-VITE_APP_NAME=AKN CLOUD ERP
+VITE_APP_NAME=AKN
 VITE_DEBUG=false
 
 # İsteğe bağlı: Google Analytics

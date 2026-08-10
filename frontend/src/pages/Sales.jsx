@@ -17,6 +17,7 @@ const Sales = () => {
   const [sales, setSales] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState(presetCustomerId);
   const [selectedCustomerName, setSelectedCustomerName] = useState(presetCustomerName);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState(presetCustomerName);
   const [selectedCustomerDiscountRate, setSelectedCustomerDiscountRate] = useState(0);
   const [customerDiscountApplied, setCustomerDiscountApplied] = useState(false);
   const [repDiscountRate, setRepDiscountRate] = useState(0);
@@ -33,6 +34,36 @@ const Sales = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchBarcode, setSearchBarcode] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(true);
+  const [retailSale, setRetailSale] = useState(false);
+
+  const resetSaleForm = ({ keepPresetCustomer = false } = {}) => {
+    setCart([]);
+    setSelectedCustomerId(keepPresetCustomer ? presetCustomerId : '');
+    setSelectedCustomerName(keepPresetCustomer ? presetCustomerName : '');
+    setCustomerSearchTerm(keepPresetCustomer ? presetCustomerName : '');
+    setSelectedCustomerDiscountRate(0);
+    setCustomerDiscountApplied(false);
+    setRepDiscountRate(0);
+    setPaymentType('NAKIT');
+    setPaymentStatus('ODENDI');
+    setDeliveryStatus('BEKLEMEDE');
+    setOrderNumber('');
+    setReferenceNo('');
+    setSaleDate(new Date().toISOString().slice(0, 10));
+    setVatRate(20);
+    setPaidAmount(0);
+    setNotes('');
+    setSearchTerm('');
+    setSearchBarcode('');
+    setRetailSale(false);
+    setShowProductPicker(true);
+  };
+
+  const handleStartNewSale = async () => {
+    resetSaleForm({ keepPresetCustomer: false });
+    await fetchData();
+  };
 
   const fetchData = async () => {
     try {
@@ -58,6 +89,16 @@ const Sales = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!presetCustomerId || customers.length === 0) return;
+    const matched = customers.find((customer) => (customer._id || customer.id) === presetCustomerId);
+    if (matched) {
+      const matchedName = matched.companyName || matched.name || '';
+      setSelectedCustomerName(matchedName);
+      setCustomerSearchTerm(matchedName);
+    }
+  }, [presetCustomerId, customers]);
+
   // Müşteri seçilince discountRate'i güncelle
   useEffect(() => {
     if (!selectedCustomerId || customers.length === 0) return;
@@ -67,13 +108,22 @@ const Sales = () => {
   }, [selectedCustomerId, customers]);
 
   const addToCart = (product) => {
+    const productId = product._id || product.id;
     setCart((prev) => {
-      const existing = prev.find((item) => item.productId === product._id || item.productId === product.id);
+      const existing = prev.find((item) => item.productId === productId);
       if (existing) {
-        return prev.map((item) => item.productId === (product._id || product.id) ? { ...item, quantity: item.quantity + 1 } : item);
+        return prev.map((item) => item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { productId: product._id || product.id, name: product.name, unitPrice: Number(product.salePrice || 0), quantity: 1 }];
+      return [...prev, {
+        productId,
+        name: product.name,
+        sku: product.sku || '',
+        stock: product.stock ?? product.quantity ?? null,
+        unitPrice: Number(product.salePrice || 0),
+        quantity: 1,
+      }];
     });
+    setShowProductPicker(false);
   };
 
   const updateQuantity = (productId, quantity) => {
@@ -88,18 +138,45 @@ const Sales = () => {
   const totalDiscountAmount = useMemo(() => Number((customerDiscountAmount + repDiscountAmount).toFixed(2)), [customerDiscountAmount, repDiscountAmount]);
   const grandTotal = useMemo(() => Number(Math.max(0, subtotal + vatAmount - totalDiscountAmount).toFixed(2)), [subtotal, vatAmount, totalDiscountAmount]);
   const filteredProducts = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    if (!term || term.length < 3) {
+      return products.slice(0, 20);
+    }
     return products.filter((product) => {
       const name = (product.name || '').toLowerCase();
       const sku = (product.sku || '').toLowerCase();
       const barcode = (product.barcode || '').toLowerCase();
       return name.includes(term) || sku.includes(term) || barcode.includes(term);
-    });
+    }).slice(0, 20);
   }, [products, searchTerm]);
 
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearchTerm.trim().toLowerCase();
+    if (!term) return customers.slice(0, 12);
+    return customers.filter((customer) => {
+      const haystack = [customer.companyName, customer.name, customer.customerCode, customer.code, customer.phone, customer.mobilePhone]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(term);
+    }).slice(0, 12);
+  }, [customers, customerSearchTerm]);
+
+  const pickCustomer = (customer) => {
+    const customerId = customer._id || customer.id || '';
+    const customerName = customer.companyName || customer.name || '';
+    setSelectedCustomerId(customerId);
+    setSelectedCustomerName(customerName);
+    setCustomerSearchTerm(customerName);
+  };
+
   const handleSaveSale = async () => {
-    if (!selectedCustomerId) {
+    if (!retailSale && !selectedCustomerId) {
       alert('Lütfen müşteri seçin.');
+      return;
+    }
+    if (retailSale && paymentType === 'ACIK_HESAP') {
+      alert('Perakende satışta açık hesap kullanılamaz.');
       return;
     }
     if (cart.length === 0) {
@@ -110,7 +187,8 @@ const Sales = () => {
     setSaving(true);
     try {
       await api.post('/sales', {
-        customerId: selectedCustomerId,
+        customerId: retailSale ? null : selectedCustomerId,
+        retailSale,
         items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity, unitPrice: item.unitPrice })),
         paymentType,
         paymentStatus: paymentType === 'ACIK_HESAP' ? 'VERESIYE' : paymentStatus,
@@ -126,24 +204,7 @@ const Sales = () => {
         vatRate: Number(vatRate || 0),
         warehouseId: '000000000000000000000000'
       });
-      setCart([]);
-      setSelectedCustomerId('');
-      setSelectedCustomerName('');
-      setSelectedCustomerDiscountRate(0);
-      setCustomerDiscountApplied(false);
-      setRepDiscountRate(0);
-      setPaymentType('NAKIT');
-      setPaymentStatus('ODENDI');
-      setDeliveryStatus('BEKLEMEDE');
-      setOrderNumber('');
-      setReferenceNo('');
-      setSaleDate(new Date().toISOString().slice(0, 10));
-      setDiscount(0);
-      setVatRate(20);
-      setPaidAmount(0);
-      setNotes('');
-      setSearchTerm('');
-      setSearchBarcode('');
+      resetSaleForm({ keepPresetCustomer: false });
       await fetchData();
       alert('Satış kaydedildi.');
     } catch (error) {
@@ -175,7 +236,7 @@ const Sales = () => {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <button onClick={() => navigate('/sales')} style={{ padding: '10px 16px', background: '#4caf50', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
+        <button onClick={handleStartNewSale} style={{ padding: '10px 16px', background: '#4caf50', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
           + Yeni Satış
         </button>
         <button onClick={() => navigate('/reports/sales')} style={{ padding: '10px 16px', background: '#2196f3', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>
@@ -183,9 +244,14 @@ const Sales = () => {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 20, marginTop: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20, marginTop: 20 }}>
         <div style={{ background: '#fff', padding: 16, borderRadius: 18, border: '1px solid #e5e7eb', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)' }}>
-          <h3>Ürünler</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0 }}>Ürünler</h3>
+            <button type="button" onClick={() => setShowProductPicker((prev) => !prev)} style={{ padding: '6px 10px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+              {showProductPicker ? 'Gizle' : 'Göster'}
+            </button>
+          </div>
           <form onSubmit={handleBarcodeSubmit} style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <input
               value={searchBarcode}
@@ -195,50 +261,128 @@ const Sales = () => {
             />
             <button type="submit" style={{ padding: '10px 14px', borderRadius: 10, background: '#2563eb', color: '#fff' }}>Barkod</button>
           </form>
-          <input
-            type="text"
-            placeholder="Ürün adı, SKU veya barkod ile ara"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', marginTop: 12, border: '1px solid #d1d5db', borderRadius: 10 }}
-          />
-          <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-            {filteredProducts.map((product) => (
-              <div key={product._id || product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e5e7eb', borderRadius: 12, padding: 12 }}>
-                <div>
-                  <strong>{product.name}</strong>
-                  <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{product.sku || product.barcode || '-'} • {product.salePrice || 0} TL</div>
-                </div>
-                <button onClick={() => addToCart(product)} style={{ padding: '8px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer' }}>Sepete Ekle</button>
-              </div>
-            ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <input
+              type="text"
+              placeholder="Ürün adı, SKU veya barkod ile ara (3 karakterden itibaren)"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  setSearchTerm((prev) => prev.trim());
+                }
+              }}
+              style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 10 }}
+            />
+            <button
+              type="button"
+              onClick={() => setSearchTerm((prev) => prev.trim())}
+              style={{ padding: '10px 14px', borderRadius: 10, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}
+            >
+              Ara
+            </button>
           </div>
+          {showProductPicker && (
+            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+              {filteredProducts.length === 0 ? (
+                <div style={{ padding: 12, border: '1px dashed #d1d5db', borderRadius: 10, color: '#64748b' }}>Arama kriterine uygun ürün bulunamadı.</div>
+              ) : filteredProducts.map((product) => (
+                <div key={product._id || product.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e5e7eb', borderRadius: 12, padding: 12, gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <strong>{product.name}</strong>
+                    <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
+                      Kod: {product.sku || product.barcode || '-'}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#6b7280' }}>
+                      Fiyat: {Number(product.salePrice || 0).toLocaleString('tr-TR')} TL • Stok: {product.stock ?? product.quantity ?? 0}
+                    </div>
+                  </div>
+                  <button onClick={() => addToCart(product)} style={{ padding: '8px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap' }}>Ekle</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ background: '#f8f9fa', padding: 16, borderRadius: 18, border: '1px solid #e5e7eb', boxShadow: '0 10px 24px rgba(15,23,42,0.04)' }}>
           <h3>Satış Formu</h3>
           <div style={{ display: 'grid', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', padding: 8, borderRadius: 8, border: '1px solid #e5e7eb' }}>
+              <input
+                type="checkbox"
+                checked={retailSale}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setRetailSale(next);
+                  if (next) {
+                    setSelectedCustomerId('');
+                    setSelectedCustomerName('');
+                    setCustomerSearchTerm('');
+                    setSelectedCustomerDiscountRate(0);
+                    setCustomerDiscountApplied(false);
+                  }
+                }}
+              />
+              <span>Perakende Satış (Müşteri seçmeden hızlı satış)</span>
+            </label>
+
             <label>
               Müşteri
-              {presetCustomerId && selectedCustomerId === presetCustomerId ? (
+              {retailSale ? (
+                <div style={{ marginTop: 4, padding: '8px 12px', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, color: '#1d4ed8', fontWeight: 600, fontSize: 14 }}>
+                  ✓ Perakende Satış (müşteri kaydı otomatik)
+                </div>
+              ) : presetCustomerId && selectedCustomerId === presetCustomerId ? (
                 <div style={{ marginTop: 4, padding: '8px 12px', background: '#ecfdf5', border: '1px solid #16a34a', borderRadius: 8, color: '#15803d', fontWeight: 600, fontSize: 14 }}>
                   ✓ {selectedCustomerName || presetCustomerName}
                 </div>
               ) : (
-                <select
-                  value={selectedCustomerId}
-                  onChange={(e) => {
-                    setSelectedCustomerId(e.target.value);
-                    const c = customers.find(c => (c._id || c.id) === e.target.value);
-                    setSelectedCustomerName(c ? (c.companyName || c.name || '') : '');
-                  }}
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
-                >
-                  <option value="">Seçiniz</option>
-                  {customers.map((customer) => (
-                    <option key={customer._id || customer.id} value={customer._id || customer.id}>{customer.companyName || customer.name}</option>
-                  ))}
-                </select>
+                <div style={{ marginTop: 4 }}>
+                  <input
+                    type="text"
+                    value={customerSearchTerm}
+                    onChange={(e) => {
+                      setCustomerSearchTerm(e.target.value);
+                      setSelectedCustomerId('');
+                      setSelectedCustomerName('');
+                    }}
+                    placeholder="Müşteri adını yazın (örn: ahm)"
+                    style={{ width: '100%', padding: 8, border: '1px solid #d1d5db', borderRadius: 8 }}
+                  />
+
+                  <div style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 8 }}>
+                    {filteredCustomers.length === 0 ? (
+                      <div style={{ fontSize: 13, color: '#64748b', padding: '8px 4px' }}>Eşleşen müşteri bulunamadı.</div>
+                    ) : (
+                      filteredCustomers.map((customer) => {
+                        const customerId = customer._id || customer.id;
+                        const isSelected = customerId === selectedCustomerId;
+                        return (
+                          <button
+                            key={customerId}
+                            type="button"
+                            onClick={() => pickCustomer(customer)}
+                            style={{
+                              textAlign: 'left',
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              border: isSelected ? '1px solid #16a34a' : '1px solid #dbe3ef',
+                              background: isSelected ? '#ecfdf5' : '#fff',
+                              color: '#0f172a',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <div style={{ fontWeight: 700 }}>{customer.companyName || customer.name}</div>
+                            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                              {customer.customerCode || customer.code || '-'} • {customer.phone || customer.mobilePhone || '-'}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               )}
             </label>
 
@@ -315,12 +459,12 @@ const Sales = () => {
               </div>
               <input
                 type="number" min="0" max={userMaxDiscount} step="0.5"
-                disabled={paymentType !== 'NAKIT'}
+                disabled={paymentType !== 'NAKIT' || retailSale}
                 value={repDiscountRate}
                 onChange={(e) => setRepDiscountRate(Math.min(userMaxDiscount, Math.max(0, Number(e.target.value))))}
-                style={{ width: '100%', padding: 8, marginTop: 4, background: paymentType !== 'NAKIT' ? '#f3f4f6' : '#fff', color: paymentType !== 'NAKIT' ? '#9ca3af' : '#111' }}
+                style={{ width: '100%', padding: 8, marginTop: 4, background: paymentType !== 'NAKIT' || retailSale ? '#f3f4f6' : '#fff', color: paymentType !== 'NAKIT' || retailSale ? '#9ca3af' : '#111' }}
               />
-              {paymentType !== 'NAKIT' && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Yalnızca nakit satışlarda aktif</div>}
+              {(paymentType !== 'NAKIT' || retailSale) && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Yalnızca müşteri seçili nakit satışlarda aktif</div>}
               {repDiscountRate > 0 && paymentType === 'NAKIT' && (
                 <div style={{ fontSize: 12, color: '#2563eb', marginTop: 3 }}>Temsilci İskontosu: -{repDiscountAmount.toLocaleString('tr-TR')} TL</div>
               )}
@@ -346,7 +490,7 @@ const Sales = () => {
           {cart.length === 0 ? <p>Sepet boş.</p> : (
             <div style={{ display: 'grid', gap: 8 }}>
               {cart.map((item) => (
-                <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: 8, borderRadius: 6 }}>
+                <div key={item.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, background: '#fff', padding: 8, borderRadius: 6 }}>
                   <div>
                     <strong>{item.name}</strong>
                     <div style={{ fontSize: 13, color: '#6b7280' }}>{item.unitPrice} TL</div>
@@ -386,6 +530,7 @@ const Sales = () => {
 
       <div style={{ marginTop: 24, background: '#fff', padding: 16, borderRadius: 18, border: '1px solid #e5e7eb', boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)' }}>
         <h3>Son Satışlar</h3>
+        <div className="table-scroll">
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
           <thead>
             <tr style={{ background: '#f3f4f6' }}>
@@ -410,6 +555,7 @@ const Sales = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

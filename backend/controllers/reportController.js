@@ -6,6 +6,7 @@ const Product = require("../models/Product");
 const User = require("../models/User");
 const AccountTransaction = require("../models/AccountTransaction");
 const StockMovement = require("../models/StockMovement");
+const { isSuperAdmin } = require("../utils/tenantScope");
 
 const getCompanyId = (req) => req.user?.company || req.user?.companyId || null;
 
@@ -30,7 +31,7 @@ exports.getSalesReport = async (req, res) => {
     
     const { startDate, endDate, customerId, paymentType, repId } = req.query;
     
-    let filter = { company: companyId };
+    let filter = { companyId };
     
     // Satış temsilcisi yalnızca kendi satışlarını görebilir
     if (userRole === "sales") {
@@ -84,7 +85,7 @@ exports.getOrdersReport = async (req, res) => {
     
     const { startDate, endDate, customerId, status, repId } = req.query;
     
-    let filter = { company: companyId };
+    let filter = { companyId };
     
     if (userRole === "sales") {
       filter.userId = userId;
@@ -136,7 +137,7 @@ exports.getCustomersReport = async (req, res) => {
     // Her müşteri için hareket ve bakiye
     const detailedCustomers = await Promise.all(
       customers.map(async (c) => {
-        const txFilter = { customerId: c._id };
+        const txFilter = { customerId: c._id, companyId };
         if (startDate || endDate) {
           txFilter.createdAt = getDateFilter(startDate, endDate).createdAt;
         }
@@ -174,7 +175,7 @@ exports.getReturnsReport = async (req, res) => {
     
     const { startDate, endDate, customerId } = req.query;
     
-    let filter = { company: companyId, paymentStatus: "IPTAL" };
+    let filter = { companyId, paymentStatus: "IPTAL" };
     
     if (userRole === "sales") {
       filter.userId = userId;
@@ -211,7 +212,7 @@ exports.getCollectionsReport = async (req, res) => {
     
     const { startDate, endDate, customerId, paymentType, repId } = req.query;
     
-    let filter = { company: companyId, paymentStatus: "ODENDI" };
+    let filter = { companyId, paymentStatus: "ODENDI" };
     
     if (userRole === "sales") {
       filter.userId = userId;
@@ -319,24 +320,32 @@ exports.getProductReport = async (req, res) => {
 // Satış Temsilcisi Raporu (admin-only)
 exports.getSalesRepReport = async (req, res) => {
   try {
-    if (req.user?.role !== "admin") {
+    if (!["admin", "SUPER_ADMIN"].includes(req.user?.role)) {
       return res.status(403).json({ success: false, message: "Yetkiniz yok." });
     }
     
     const companyId = getCompanyId(req);
-    const { startDate, endDate, repId } = req.query;
+    const { startDate, endDate, repId, companyId: companyFilter } = req.query;
+    const scopeCompanyId = isSuperAdmin(req) ? (companyFilter || null) : companyId;
     
     let reps = [];
     if (repId) {
-      const rep = await User.findById(repId).lean();
+      const repQuery = { _id: repId, role: "sales" };
+      if (scopeCompanyId) repQuery.company = scopeCompanyId;
+      const rep = await User.findOne(repQuery).lean();
       if (rep) reps = [rep];
     } else {
-      reps = await User.find({ company: companyId, role: "sales" }).lean();
+      const repQuery = { role: "sales" };
+      if (scopeCompanyId) repQuery.company = scopeCompanyId;
+      reps = await User.find(repQuery).lean();
     }
     
     const salesReps = await Promise.all(
       reps.map(async (rep) => {
-        let filter = { company: companyId, userId: rep._id };
+        let filter = { userId: rep._id };
+        if (scopeCompanyId) {
+          filter.companyId = scopeCompanyId;
+        }
         if (startDate || endDate) {
           filter = { ...filter, ...getDateFilter(startDate, endDate) };
         }
@@ -360,7 +369,7 @@ exports.getSalesRepReport = async (req, res) => {
 // İşlem Geçmişi (admin-only)
 exports.getAuditReport = async (req, res) => {
   try {
-    if (req.user?.role !== "admin") {
+    if (!["admin", "SUPER_ADMIN"].includes(req.user?.role)) {
       return res.status(403).json({ success: false, message: "Yetkiniz yok." });
     }
     
@@ -368,7 +377,12 @@ exports.getAuditReport = async (req, res) => {
     const { startDate, endDate, userId, module, action } = req.query;
     
     const ActivityLog = require("../models/ActivityLog");
-    let filter = { companyId };
+    let filter = {};
+    if (!isSuperAdmin(req)) {
+      filter.companyId = companyId;
+    } else if (req.query.companyId) {
+      filter.companyId = req.query.companyId;
+    }
     
     if (startDate || endDate) {
       filter = { ...filter, ...getDateFilter(startDate, endDate) };

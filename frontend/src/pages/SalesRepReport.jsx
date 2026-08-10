@@ -8,6 +8,12 @@ const SalesRepReport = () => {
   const [reps, setReps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [filters, setFilters] = useState({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .slice(0, 10),
+    endDate: new Date().toISOString().slice(0, 10),
+  });
 
   const currentUser = useMemo(() => {
     try {
@@ -17,27 +23,7 @@ const SalesRepReport = () => {
     }
   }, []);
 
-  // Admin kontrolü
-  if (currentUser?.role !== "admin") {
-    return (
-      <div className="report-container">
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <h2>⛔ Yetkisiz Erişim</h2>
-          <p>Bu raporu görüntülemek için admin yetkisi gereklidir.</p>
-          <button onClick={() => navigate("/dashboard")} className="btn-primary">
-            Dashboard'a Dön
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const [filters, setFilters] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
-  });
+  const isAdmin = currentUser?.role === "admin";
 
   const fetchData = async () => {
     setLoading(true);
@@ -57,8 +43,26 @@ const SalesRepReport = () => {
   };
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     fetchData();
   }, []);
+
+  if (!isAdmin) {
+    return (
+      <div className="report-container">
+        <div style={{ textAlign: "center", padding: "40px" }}>
+          <h2>⛔ Yetkisiz Erişim</h2>
+          <p>Bu raporu görüntülemek için admin yetkisi gereklidir.</p>
+          <button onClick={() => navigate("/dashboard")} className="btn-primary">
+            Dashboard'a Dön
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

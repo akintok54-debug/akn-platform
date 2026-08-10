@@ -8,10 +8,10 @@ const {
   updateMyCompany,
   getBackup,
 } = require("../controllers/companyController");
-const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware");
+const { verifyToken, verifySuperAdmin } = require("../middleware/authMiddleware");
 
-router.post("/", verifyToken, verifyAdmin, createCompany);
-router.get("/", verifyToken, verifyAdmin, getCompanies);
+router.post("/", verifyToken, verifySuperAdmin, createCompany);
+router.get("/", verifyToken, verifySuperAdmin, getCompanies);
 router.get("/me", verifyToken, getMyCompany);
 router.put("/me", verifyToken, updateMyCompany);
 router.get("/backup", verifyToken, getBackup);

@@ -185,7 +185,7 @@ function Orders() {
           </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+        <div className="responsive-two-col">
           <section style={{ background: "#fff", borderRadius: 16, padding: 16, boxShadow: "0 8px 28px rgba(15,23,42,0.06)" }}>
             <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
               <input

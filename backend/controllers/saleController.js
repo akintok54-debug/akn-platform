@@ -9,6 +9,29 @@ const Invoice = require("../models/lnvoice");
 const Product = require("../models/Product");
 const User = require("../models/User");
 const ActivityLog = require("../models/ActivityLog");
+const { getCompanyId } = require("../utils/tenantScope");
+const { calculateSaleTotals, shouldApplyStockMovement } = require("../utils/saleFlow");
+
+const PLACEHOLDER_WAREHOUSE_ID = "000000000000000000000000";
+
+const findOrCreateRetailCustomer = async ({ companyId }) => {
+  let retailCustomer = await Customer.findOne({ company: companyId, customerCategory: "retail" });
+
+  if (!retailCustomer) {
+    retailCustomer = await Customer.create({
+      company: companyId,
+      customerCode: `RTL-${Date.now()}`,
+      companyName: "Perakende Satış",
+      name: "Perakende Satış",
+      customerCategory: "retail",
+      active: true,
+      type: "customer",
+      balance: 0,
+    });
+  }
+
+  return retailCustomer;
+};
 
 // 1. Yeni Satış / Sepet Tamamlama İşlemi
 exports.createSale = async (req, res) => {
@@ -30,15 +53,21 @@ exports.createSale = async (req, res) => {
       vatRate,
       customerDiscountRate,
       repDiscountRate,
+      retailSale,
     } = req.body;
-    const companyId = req.user?.companyId || req.user?.company || new mongoose.Types.ObjectId();
+    const companyId = getCompanyId(req);
     const userId = req.user?.id || req.user?._id;
+
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     // İskonto yetki kontrolü (sales rolü için)
     const dbUser = userId ? await User.findById(userId).select('role maxDiscountRate discountAllowedPaymentTypes name').lean() : null;
     const userRole = dbUser?.role || req.user?.role;
     const normalizedRepRate = Number(repDiscountRate || 0);
     const normalizedCustRate = Number(customerDiscountRate || 0);
+    const isRetailSale = Boolean(retailSale);
 
     if (userRole === 'sales' && normalizedRepRate > 0) {
       const maxRate = dbUser?.maxDiscountRate ?? 3;
@@ -59,9 +88,31 @@ exports.createSale = async (req, res) => {
     const processedItems = [];
     const normalizedStoreId = storeId || new mongoose.Types.ObjectId();
     const normalizedWarehouseId = warehouseId || new mongoose.Types.ObjectId();
-    const normalizedCustomerId = customerId || new mongoose.Types.ObjectId();
-    const customer = customerId ? await Customer.findById(normalizedCustomerId) : null;
-    let account = await Account.findOne({ companyId }) || await Account.findOne({});
+    let finalPaymentStatus = paymentStatus || "ODENDI";
+    if (paymentType === "ACIK_HESAP" || finalPaymentStatus === "VERESIYE") {
+      finalPaymentStatus = "VERESIYE";
+    }
+
+    let customer = null;
+    let normalizedCustomerId = customerId || null;
+    if (isRetailSale && !normalizedCustomerId) {
+      customer = await findOrCreateRetailCustomer({ companyId });
+      normalizedCustomerId = customer._id;
+    }
+
+    if (!normalizedCustomerId) {
+      return res.status(400).json({ success: false, message: "Musteri secimi zorunludur." });
+    }
+
+    if (!customer) {
+      customer = await Customer.findOne({ _id: normalizedCustomerId, company: companyId });
+    }
+
+    if (!customer) {
+      return res.status(404).json({ success: false, message: "Musteri bulunamadi." });
+    }
+
+    let account = await Account.findOne({ companyId });
     if (!account) {
       account = await Account.create({
         companyId,
@@ -75,47 +126,62 @@ exports.createSale = async (req, res) => {
     const normalizedPaidAmount = Number(paidAmount || 0);
     const normalizedVatRate = Number(vatRate || 20);
     const normalizedSaleDate = saleDate ? new Date(saleDate) : new Date();
+    const shouldTrackStock = shouldApplyStockMovement({ status: paymentStatus, paymentStatus: finalPaymentStatus });
+    const shouldTrackWarehouse = Boolean(normalizedWarehouseId && String(normalizedWarehouseId) !== PLACEHOLDER_WAREHOUSE_ID);
 
     for (let item of items) {
       const { productId, quantity, unitPrice } = item;
       const parsedQuantity = Number(quantity || 0);
       const parsedUnitPrice = Number(unitPrice || 0);
+
+      const product = await Product.findOne({ _id: productId, company: companyId });
+      if (!product) {
+        return res.status(404).json({ success: false, message: `Urun bulunamadi: ${productId}` });
+      }
+
       const itemTotal = parsedQuantity * parsedUnitPrice;
       subtotal += itemTotal;
 
       processedItems.push({
         productId,
+        productName: product.name,
         quantity: parsedQuantity,
         unitPrice: parsedUnitPrice,
         totalPrice: itemTotal,
       });
 
-      if (normalizedWarehouseId) {
-        let whStock = await WarehouseStock.findOne({ companyId, warehouseId: normalizedWarehouseId, productId });
+      if (shouldTrackStock && shouldTrackWarehouse) {
+        let whStock = await WarehouseStock.findOne({ companyId, warehouseId: normalizedWarehouseId, productId: product._id });
 
         if (!whStock) {
-          whStock = new WarehouseStock({ companyId, warehouseId: normalizedWarehouseId, productId, quantity: 0 });
+          whStock = new WarehouseStock({ companyId, warehouseId: normalizedWarehouseId, productId: product._id, quantity: 0 });
         }
 
         if ((whStock.quantity || 0) < parsedQuantity) {
-          return res.status(400).json({ success: false, message: `Stok yetersiz: ${productId}` });
+          return res.status(400).json({ success: false, message: `Stok yetersiz: ${product.name}` });
         }
 
         whStock.quantity -= parsedQuantity;
         await whStock.save();
       }
+
+      if (shouldTrackStock && !shouldTrackWarehouse) {
+        if (Number(product.stock || 0) < parsedQuantity) {
+          return res.status(400).json({ success: false, message: `Stok yetersiz: ${product.name}` });
+        }
+        product.stock = Number(product.stock || 0) - parsedQuantity;
+        await product.save();
+      }
     }
 
-    const vatTotal = Number((subtotal * (normalizedVatRate / 100)).toFixed(2));
-    const totalAmount = Number((subtotal + vatTotal - normalizedDiscount).toFixed(2));
-    const dueAmount = Number(Math.max(0, totalAmount - normalizedPaidAmount).toFixed(2));
+    const { vatTotal, totalAmount, dueAmount } = calculateSaleTotals({
+      subtotal,
+      vatRate: normalizedVatRate,
+      discount: normalizedDiscount,
+      paidAmount: normalizedPaidAmount,
+    });
 
-    let finalPaymentStatus = paymentStatus || "ODENDI";
-    if (paymentType === "ACIK_HESAP" || finalPaymentStatus === "VERESIYE") {
-      finalPaymentStatus = "VERESIYE";
-    }
-
-    if (customer) {
+    if (customer && !isRetailSale) {
       if (paymentType === "ACIK_HESAP" || finalPaymentStatus === "VERESIYE") {
         customer.balance = (customer.balance || 0) + dueAmount;
       } else if (normalizedPaidAmount > 0) {
@@ -170,7 +236,7 @@ exports.createSale = async (req, res) => {
       });
     }
 
-    if (customer) {
+    if (customer && !isRetailSale) {
       await customer.save();
     }
 
@@ -191,33 +257,51 @@ exports.createSale = async (req, res) => {
       }
     }
 
-    await AccountTransaction.create({
-      companyId,
-      customerId: normalizedCustomerId,
-      type: paymentType === 'ACIK_HESAP' ? 'BORC' : 'ALACAK',
-      amount: totalAmount,
-      description: `Satış kaydı: ${orderNumber || referenceNo || newSale._id}`,
-      saleId: newSale._id,
-    });
+    if (!isRetailSale && customer && normalizedCustomerId) {
+      await AccountTransaction.create({
+        companyId,
+        customerId: normalizedCustomerId,
+        type: finalPaymentStatus === 'VERESIYE' || paymentType === 'ACIK_HESAP' ? 'BORC' : 'ALACAK',
+        amount: totalAmount,
+        description: `Satış kaydı: ${orderNumber || referenceNo || newSale._id}`,
+        saleId: newSale._id,
+      });
+    }
 
     await Invoice.create({
       companyId,
       customerId: normalizedCustomerId,
+      customerName: customer.companyName || customer.name || "Perakende Satış",
+      customerTaxNumber: customer.taxNumber || "",
+      customerAddress: customer.address || "",
+      customerPhone: customer.phone || "",
+      customerEmail: customer.email || "",
       invoiceNumber: `INV-${Date.now()}`,
       invoiceType: 'E_ARSIV',
       items: processedItems.map((item) => ({
         productId: item.productId,
-        name: item.productId,
+        name: item.productName || item.productId,
         quantity: item.quantity,
+        unit: 'Adet',
+        discountPercent: 0,
+        discountAmount: 0,
         unitPrice: item.unitPrice,
-        taxRate: 20,
+        taxRate: normalizedVatRate,
+        taxAmount: Number((item.totalPrice * (normalizedVatRate / 100)).toFixed(2)),
         totalPrice: item.totalPrice,
+        totalWithTax: Number((item.totalPrice + (item.totalPrice * (normalizedVatRate / 100))).toFixed(2)),
       })),
+      notes: notes || '',
       subTotal: subtotal,
       taxTotal: vatTotal,
       grandTotal: totalAmount,
+      paymentMethod: paymentType === 'KREDI_KARTI' ? 'CARD' : paymentType === 'HAVALE' ? 'BANK' : 'CASH',
+      paymentStatus: finalPaymentStatus === 'ODENDI' ? 'PAID' : finalPaymentStatus === 'KISMEN_ODENDI' ? 'PARTIAL' : 'UNPAID',
+      paidAmount: normalizedPaidAmount,
+      remainingAmount: Number(Math.max(0, totalAmount - normalizedPaidAmount).toFixed(2)),
       status: 'TASLAK',
       gibResponseMessage: 'Satıştan türetilen otomatik fatura taslağı.',
+      createdBy: userId || undefined,
     });
 
     res.status(201).json({
@@ -233,11 +317,14 @@ exports.createSale = async (req, res) => {
 // 2. Yapılan Satışları Listeleme
 exports.getSales = async (req, res) => {
   try {
-    const companyId = req.user?.companyId || req.user?.company;
+    const companyId = getCompanyId(req);
     const { storeId } = req.query;
 
-    let filter = {};
-    if (companyId) filter.companyId = companyId;
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
+
+    let filter = { companyId };
     if (storeId) filter.storeId = storeId;
 
     const sales = await Sale.find(filter)

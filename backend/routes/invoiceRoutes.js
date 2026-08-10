@@ -17,14 +17,12 @@ router.use(verifyToken);
 // FATURA İŞLEMLERİ
 router.post("/", createInvoice); // Fatura oluştur
 router.get("/", getInvoices); // Tüm faturaları listele (filtre destekli)
+router.get("/reports/accounting", getAccountingReport); // Muhasebe raporu
 router.get("/:id", getInvoiceById); // Fatura detay & ödemeler
 router.post("/:id/cancel", cancelInvoice); // Fatura iptal et
 router.post("/:invoiceId/payment", recordPayment); // Ödeme kaydet
 
 // GİB ENTEGRASYONU
 router.post("/:id/send-to-gib", sendInvoiceToGIB); // GİB'e gönder
-
-// RAPORLAR
-router.get("/reports/accounting", getAccountingReport); // Muhasebe raporu
 
 module.exports = router;

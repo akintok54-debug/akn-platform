@@ -10,10 +10,16 @@ const CashTransaction = require("../models/CashTransaction");
 const BankTransaction = require("../models/BankTransaction");
 const StockMovement = require("../models/StockMovement");
 const Warehouse = require("../models/Warehouse");
+const { buildTrialSubscription } = require("../services/subscriptionService");
 
 const createCompany = async (req, res) => {
   try {
-    const company = await Company.create(req.body);
+    const payload = { ...req.body };
+    if (!payload.subscriptionStatus) {
+      Object.assign(payload, buildTrialSubscription());
+    }
+
+    const company = await Company.create(payload);
 
     res.status(201).json({
       success: true,
@@ -83,12 +89,15 @@ const updateMyCompany = async (req, res) => {
 const getBackup = async (req, res) => {
   try {
     const companyId = req.user?.company || req.user?.companyId;
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     const [company, users, products, customers, sales, accounts, transactions, orders, cashTransactions, bankTransactions, stockMovements, warehouses] = await Promise.all([
       Company.findById(companyId).lean(),
       User.find({ company: companyId }).select("name email role isActive permissionProfileId createdAt").lean(),
-      Product.find({ $or: [{ company: companyId }, { company: null }, { company: { $exists: false } }] }).lean(),
-      Customer.find({ $or: [{ company: companyId }, { companyId }, { company: null }, { companyId: null }] }).lean(),
+      Product.find({ company: companyId }).lean(),
+      Customer.find({ company: companyId }).lean(),
       Sale.find({ companyId }).lean(),
       Account.find({ companyId }).lean(),
       AccountTransaction.find({ companyId }).lean(),

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { canAccessModule } from "./services/permissions";
+import { canAccessModule, isAuthenticated } from "./services/permissions";
+import Layout from "./components/Layout";
 
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -8,7 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Customers from "./pages/customers";
 import CustomerDetail from "./pages/CustomerDetail";
-import Products from "./pages/Products";
+import Suppliers from "./pages/Suppliers";
+import SupplierDetail from "./pages/SupplierDetail";
 import ProductsCenter from "./pages/ProductsCenter";
 import ProductDetail from "./pages/ProductDetail";
 import Stock from "./pages/Stock";
@@ -41,6 +43,7 @@ import ImportHistory from "./pages/ImportHistory";
 import ErrorProducts from "./pages/ErrorProducts";
 import CategoryManager from "./pages/CategoryManager";
 import BrandManager from "./pages/BrandManager";
+import SuperAdmin from "./pages/SuperAdmin";
 
 const AVAILABLE_THEMES = ["light", "dark", "ocean", "corporate"];
 
@@ -53,8 +56,18 @@ const applyTheme = (theme) => {
 };
 
 function ProtectedRoute({ moduleName, element }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
+  }
   if (!canAccessModule(moduleName)) {
     return <Navigate to="/dashboard" replace />;
+  }
+  return element;
+}
+
+function AuthRoute({ element }) {
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" replace />;
   }
   return element;
 }
@@ -66,6 +79,8 @@ function DealerProtectedRoute({ element }) {
   }
   return element;
 }
+
+const withLayout = (element) => <Layout>{element}</Layout>;
 
 function App() {
   useEffect(() => {
@@ -92,56 +107,59 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Ana Sayfa - Direkt Login sayfasına yönlendir */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} replace />} />
 
         {/* Kimlik */}
         <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={isAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/dealer/login" element={<DealerLogin />} />
         <Route path="/dealer" element={<DealerProtectedRoute element={<DealerPortal />} />} />
         <Route path="/bayi/:secureToken" element={<DealerSelfServicePortal />} />
 
         {/* ERP / Yönetim Paneli */}
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/dashboard" element={<AuthRoute element={<Dashboard />} />} />
+        <Route path="/settings" element={<AuthRoute element={<Settings />} />} />
+        <Route path="/super-admin" element={<AuthRoute element={<SuperAdmin />} />} />
 
         {/* Modüller */}
-        <Route path="/customers" element={<ProtectedRoute moduleName="customers" element={<Customers />} />} />
-        <Route path="/customers/:id" element={<ProtectedRoute moduleName="customers" element={<CustomerDetail />} />} />
+        <Route path="/customers" element={<ProtectedRoute moduleName="customers" element={withLayout(<Customers />)} />} />
+        <Route path="/customers/:id" element={<ProtectedRoute moduleName="customers" element={withLayout(<CustomerDetail />)} />} />
+        <Route path="/suppliers" element={<ProtectedRoute moduleName="suppliers" element={<Suppliers />} />} />
+        <Route path="/suppliers/:id" element={<ProtectedRoute moduleName="suppliers" element={<SupplierDetail />} />} />
         
         {/* Ürün Merkezi */}
-        <Route path="/products" element={<ProtectedRoute moduleName="products" element={<ProductsCenter />} />} />
-        <Route path="/products/new" element={<ProtectedRoute moduleName="products" element={<ProductDetail />} />} />
-        <Route path="/products/:id" element={<ProtectedRoute moduleName="products" element={<ProductDetail />} />} />
-        <Route path="/bulk-update/:type" element={<ProtectedRoute moduleName="products" element={<BulkUpdate />} />} />
-        <Route path="/bulk-export" element={<ProtectedRoute moduleName="products" element={<ProductsCenter />} />} />
-        <Route path="/import-history" element={<ProtectedRoute moduleName="products" element={<ImportHistory />} />} />
-        <Route path="/error-products" element={<ProtectedRoute moduleName="products" element={<ErrorProducts />} />} />
-        <Route path="/category-manager" element={<ProtectedRoute moduleName="products" element={<CategoryManager />} />} />
-        <Route path="/brand-manager" element={<ProtectedRoute moduleName="products" element={<BrandManager />} />} />
+        <Route path="/products" element={<ProtectedRoute moduleName="products" element={withLayout(<ProductsCenter />)} />} />
+        <Route path="/products/new" element={<ProtectedRoute moduleName="products" element={withLayout(<ProductDetail />)} />} />
+        <Route path="/products/:id" element={<ProtectedRoute moduleName="products" element={withLayout(<ProductDetail />)} />} />
+        <Route path="/bulk-update/:type" element={<ProtectedRoute moduleName="products" element={withLayout(<BulkUpdate />)} />} />
+        <Route path="/bulk-export" element={<ProtectedRoute moduleName="products" element={withLayout(<ProductsCenter />)} />} />
+        <Route path="/import-history" element={<ProtectedRoute moduleName="products" element={withLayout(<ImportHistory />)} />} />
+        <Route path="/error-products" element={<ProtectedRoute moduleName="products" element={withLayout(<ErrorProducts />)} />} />
+        <Route path="/category-manager" element={<ProtectedRoute moduleName="products" element={withLayout(<CategoryManager />)} />} />
+        <Route path="/brand-manager" element={<ProtectedRoute moduleName="products" element={withLayout(<BrandManager />)} />} />
         
         <Route path="/stock" element={<ProtectedRoute moduleName="inventory" element={<Stock />} />} />
         <Route path="/orders" element={<ProtectedRoute moduleName="sales" element={<Orders />} />} />
         <Route path="/cash" element={<ProtectedRoute moduleName="accounting" element={<Cash />} />} />
         <Route path="/bank" element={<ProtectedRoute moduleName="accounting" element={<Bank />} />} />
         <Route path="/current-accounts" element={<ProtectedRoute moduleName="accounting" element={<CurrentAccounts />} />} />
-        <Route path="/sales" element={<ProtectedRoute moduleName="sales" element={<Sales />} />} />
-        <Route path="/accounting" element={<ProtectedRoute moduleName="accounting" element={<AccountingDashboard />} />} />
-        <Route path="/invoices" element={<ProtectedRoute moduleName="invoices" element={<Accounting />} />} />
-        <Route path="/invoices/create" element={<ProtectedRoute moduleName="invoices" element={<InvoiceCreate />} />} />
-        <Route path="/invoices/:id" element={<ProtectedRoute moduleName="invoices" element={<InvoiceView />} />} />
-        <Route path="/reports" element={<ProtectedRoute moduleName="reports" element={<ReportsHub />} />} />
-        <Route path="/reports/sales" element={<ProtectedRoute moduleName="reports" element={<SalesReport />} />} />
-        <Route path="/reports/customers" element={<ProtectedRoute moduleName="reports" element={<CustomersReport />} />} />
-        <Route path="/reports/orders" element={<ProtectedRoute moduleName="reports" element={<OrdersReport />} />} />
-        <Route path="/reports/stock" element={<ProtectedRoute moduleName="reports" element={<StockReport />} />} />
-        <Route path="/reports/collections" element={<ProtectedRoute moduleName="reports" element={<CollectionsReport />} />} />
-        <Route path="/reports/returns" element={<ProtectedRoute moduleName="reports" element={<ReturnsReport />} />} />
-        <Route path="/reports/products" element={<ProtectedRoute moduleName="reports" element={<ProductsReport />} />} />
-        <Route path="/reports/audit" element={<ProtectedRoute moduleName="reports" element={<AuditReport />} />} />
-        <Route path="/reports/sales-reps" element={<ProtectedRoute moduleName="reports" element={<SalesRepReport />} />} />
+        <Route path="/sales" element={<ProtectedRoute moduleName="sales" element={withLayout(<Sales />)} />} />
+        <Route path="/accounting" element={<ProtectedRoute moduleName="accounting" element={withLayout(<AccountingDashboard />)} />} />
+        <Route path="/invoices" element={<ProtectedRoute moduleName="invoices" element={withLayout(<Accounting />)} />} />
+        <Route path="/invoices/create" element={<ProtectedRoute moduleName="invoices" element={withLayout(<InvoiceCreate />)} />} />
+        <Route path="/invoices/:id" element={<ProtectedRoute moduleName="invoices" element={withLayout(<InvoiceView />)} />} />
+        <Route path="/reports" element={<ProtectedRoute moduleName="reports" element={withLayout(<ReportsHub />)} />} />
+        <Route path="/reports/sales" element={<ProtectedRoute moduleName="reports" element={withLayout(<SalesReport />)} />} />
+        <Route path="/reports/customers" element={<ProtectedRoute moduleName="reports" element={withLayout(<CustomersReport />)} />} />
+        <Route path="/reports/orders" element={<ProtectedRoute moduleName="reports" element={withLayout(<OrdersReport />)} />} />
+        <Route path="/reports/stock" element={<ProtectedRoute moduleName="reports" element={withLayout(<StockReport />)} />} />
+        <Route path="/reports/collections" element={<ProtectedRoute moduleName="reports" element={withLayout(<CollectionsReport />)} />} />
+        <Route path="/reports/returns" element={<ProtectedRoute moduleName="reports" element={withLayout(<ReturnsReport />)} />} />
+        <Route path="/reports/products" element={<ProtectedRoute moduleName="reports" element={withLayout(<ProductsReport />)} />} />
+        <Route path="/reports/audit" element={<ProtectedRoute moduleName="reports" element={withLayout(<AuditReport />)} />} />
+        <Route path="/reports/sales-reps" element={<ProtectedRoute moduleName="reports" element={withLayout(<SalesRepReport />)} />} />
         <Route path="/imports" element={<ProtectedRoute moduleName="reports" element={<ImportCenter />} />} />
-        <Route path="/daily-sales" element={<ProtectedRoute moduleName="reports" element={<DailySales />} />} />
+        <Route path="/daily-sales" element={<ProtectedRoute moduleName="reports" element={withLayout(<DailySales />)} />} />
 
         {/* 404 */}
         <Route path="*" element={<h2>404 - Sayfa Bulunamadı</h2>} />

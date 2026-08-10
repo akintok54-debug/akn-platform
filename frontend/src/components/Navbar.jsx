@@ -1,5 +1,23 @@
+import { Link, useNavigate } from "react-router-dom";
+import { clearStoredAuth, getStoredUser, isAuthenticated } from "../services/permissions";
+import api from "../services/api";
+
 function Navbar({ onMenuClick }) {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const navigate = useNavigate();
+  const authenticated = isAuthenticated();
+  const user = getStoredUser() || {};
+  const companyName = user.companyName || user.company?.companyName || user.company?.name || "Firma";
+
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      clearStoredAuth();
+      navigate("/login", { replace: true });
+    }
+  };
 
   return (
     <header
@@ -19,9 +37,10 @@ function Navbar({ onMenuClick }) {
         zIndex: 10,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="navbar-brand" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button
           onClick={onMenuClick}
+          aria-label="Menü"
           style={{
             width: 40,
             height: 40,
@@ -31,15 +50,48 @@ function Navbar({ onMenuClick }) {
             fontSize: 18,
           }}
         >☰</button>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "1px" }}>BAHADIR AKIN</div>
-          <div style={{ fontSize: 10, color: "var(--navbar-muted)", marginTop: 2 }}>Enterprise Management System</div>
+        <div className="navbar-brand-text">
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "1px" }}>AKN</div>
+          <div style={{ fontSize: 10, color: "var(--navbar-muted)", marginTop: 2 }}>İş Yönetimi</div>
         </div>
       </div>
 
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontWeight: 700 }}>{user.name || "Kullanıcı"}</div>
-        <div style={{ fontSize: 13, color: "var(--navbar-muted)" }}>{user.companyName || "Firma"}</div>
+      <div className="navbar-user" style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 12 }}>
+        {authenticated ? (
+          <>
+            <div>
+              <div style={{ fontWeight: 700 }}>{user.name || "Kullanıcı"}</div>
+              <div style={{ fontSize: 13, color: "var(--navbar-muted)" }}>{companyName}</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 12,
+                background: "#0f172a",
+                color: "#fff",
+                fontWeight: 700,
+              }}
+            >
+              Çıkış Yap
+            </button>
+          </>
+        ) : (
+          <Link
+            to="/login"
+            style={{
+              padding: "10px 14px",
+              borderRadius: 12,
+              background: "#0f172a",
+              color: "#fff",
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            Giriş Yap
+          </Link>
+        )}
       </div>
     </header>
   );

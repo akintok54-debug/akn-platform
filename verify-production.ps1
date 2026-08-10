@@ -1,8 +1,8 @@
 #!/usr/bin/env powershell
-# AKN CLOUD ERP - Production Readiness Verification
+# AKN - Production Readiness Verification
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "AKN CLOUD ERP - PRODUCTION READINESS CHECK" -ForegroundColor Cyan
+Write-Host "AKN - PRODUCTION READINESS CHECK" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

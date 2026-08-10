@@ -69,7 +69,7 @@ const AccountingDashboard = () => {
           padding: 16,
           marginBottom: 24,
           display: 'grid',
-          gridTemplateColumns: 'auto auto auto',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: 12,
           alignItems: 'flex-end',
         }}

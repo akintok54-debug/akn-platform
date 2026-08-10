@@ -19,15 +19,22 @@ const Settings = () => {
   const [users, setUsers] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [ideasoft, setIdeasoft] = useState({ loading: false, status: null, syncing: false, resource: '', message: '' });
+  const [ecommercePreview, setEcommercePreview] = useState({ loading: false, items: [], search: '', imagesOnly: false });
   const [loading, setLoading] = useState(false);
   const [profileName, setProfileName] = useState('Satış Temsilcisi');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState('');
   const [selectedUserRole, setSelectedUserRole] = useState('sales');
-  const [newUser, setNewUser] = useState({ name: '', email: '', userName: '', password: '', role: 'sales', customerId: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', phone: '', userName: '', password: '', role: 'sales', customerId: '' });
+  const [inviteRole, setInviteRole] = useState('sales');
+  const [inviteCustomerId, setInviteCustomerId] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('company');
   const [permissions, setPermissions] = useState({
     customers: true,
+    suppliers: true,
     products: true,
     sales: true,
     invoices: true,
@@ -46,7 +53,14 @@ const Settings = () => {
     fetchUsers();
     fetchRoles();
     fetchCustomers();
+    fetchIdeaSoftStatus();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'ecommerce' && ecommercePreview.items.length === 0 && !ecommercePreview.loading) {
+      fetchEcommerceProducts();
+    }
+  }, [activeTab]);
 
   const fetchCompany = async () => {
     try {
@@ -103,6 +117,34 @@ const Settings = () => {
     }
   };
 
+  const fetchIdeaSoftStatus = async () => {
+    setIdeasoft((prev) => ({ ...prev, loading: true }));
+    try {
+      const response = await api.get('/erp/ideasoft/status');
+      setIdeasoft((prev) => ({
+        ...prev,
+        loading: false,
+        status: response?.data || null,
+        message: response?.data?.connected ? 'IdeaSoft bağlı.' : 'IdeaSoft henüz bağlı değil.',
+      }));
+    } catch (error) {
+      console.error(error);
+      setIdeasoft((prev) => ({ ...prev, loading: false, message: error?.response?.data?.message || 'IdeaSoft durumu alınamadı.' }));
+    }
+  };
+
+  const fetchEcommerceProducts = async () => {
+    setEcommercePreview((prev) => ({ ...prev, loading: true }));
+    try {
+      const response = await api.get('/products');
+      const items = response?.data?.data || response?.data?.products || response?.data || [];
+      setEcommercePreview((prev) => ({ ...prev, loading: false, items: Array.isArray(items) ? items : [] }));
+    } catch (error) {
+      console.error(error);
+      setEcommercePreview((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCompany((prev) => ({ ...prev, [name]: value }));
@@ -138,6 +180,7 @@ const Settings = () => {
       setProfileName('Satış Temsilcisi');
       setPermissions({
         customers: true,
+        suppliers: true,
         products: true,
         sales: true,
         invoices: true,
@@ -177,7 +220,7 @@ const Settings = () => {
     e.preventDefault();
     try {
       await api.post('/permissions/users', newUser);
-      setNewUser({ name: '', email: '', userName: '', password: '', role: 'sales', customerId: '' });
+      setNewUser({ name: '', email: '', phone: '', userName: '', password: '', role: 'sales', customerId: '' });
       await fetchUsers();
       alert('Kullanıcı eklendi.');
     } catch (error) {
@@ -198,6 +241,42 @@ const Settings = () => {
     }
   };
 
+  const handleGenerateInviteLink = async () => {
+    if (inviteRole === 'dealer' && !inviteCustomerId) {
+      alert('Bayi daveti için müşteri seçmelisiniz.');
+      return;
+    }
+
+    setInviteLoading(true);
+    try {
+      const response = await api.post('/permissions/invite-link', {
+        role: inviteRole,
+        customerId: inviteCustomerId,
+      });
+
+      const token = response?.data?.token;
+      if (!token) {
+        throw new Error('Davet tokeni alınamadı.');
+      }
+
+      const link = `${window.location.origin}/register?invite=${encodeURIComponent(token)}`;
+      setInviteLink(link);
+
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch (clipboardError) {
+        console.warn(clipboardError);
+      }
+
+      alert('Davet linki oluşturuldu.');
+    } catch (error) {
+      console.error(error);
+      alert(error?.response?.data?.message || 'Davet linki oluşturulamadı.');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   const handleBackup = async () => {
     try {
       const response = await api.get('/company/backup');
@@ -215,6 +294,66 @@ const Settings = () => {
       alert('Yedekleme alınamadı.');
     }
   };
+
+  const handleIdeaSoftConnect = async () => {
+    try {
+      const response = await api.get('/erp/ideasoft/auth-url');
+      const authUrl = response?.data?.authUrl;
+      if (!authUrl) {
+        alert('Bağlantı adresi alınamadı.');
+        return;
+      }
+      window.open(authUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error(error);
+      alert(error?.response?.data?.message || 'IdeaSoft bağlantısı başlatılamadı.');
+    }
+  };
+
+  const handleIdeaSoftSync = async (resource) => {
+    setIdeasoft((prev) => ({ ...prev, syncing: true, resource, message: '' }));
+    try {
+      const response = await api.post(`/erp/ideasoft/sync/${resource}`, { preview: false });
+      const summary = response?.data?.summary || {};
+      const imageNote = resource === 'products' ? ` Görseller de kaydedildi.` : '';
+      setIdeasoft((prev) => ({
+        ...prev,
+        syncing: false,
+        resource: '',
+        message: `${resource} senkronu tamamlandı. ${summary.inserted || 0} eklendi, ${summary.updated || 0} güncellendi.${imageNote}`,
+        status: prev.status,
+      }));
+      await fetchIdeaSoftStatus();
+      alert(`${resource} senkronu tamamlandı.`);
+    } catch (error) {
+      console.error(error);
+      setIdeasoft((prev) => ({ ...prev, syncing: false, resource: '', message: error?.response?.data?.message || 'Senkron başarısız.' }));
+      alert(error?.response?.data?.message || 'Senkron başarısız.');
+    }
+  };
+
+  const hasProductImage = (product) => Boolean(product?.image || (Array.isArray(product?.images) && product.images.length > 0));
+
+  const getProductImage = (product) => {
+    if (product?.image) return product.image;
+    if (Array.isArray(product?.images) && product.images.length > 0) {
+      const firstImage = product.images[0];
+      if (typeof firstImage === 'string') return firstImage;
+      if (firstImage && typeof firstImage === 'object') return firstImage.url || firstImage.src || firstImage.imageUrl || '';
+    }
+    return '';
+  };
+
+  const ecommerceFilteredItems = ecommercePreview.items.filter((product) => {
+    const searchText = ecommercePreview.search.trim().toLowerCase();
+    const matchesSearch = !searchText || [product.name, product.sku, product.barcode, product.brand, product.category]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(searchText);
+    const matchesImageFilter = !ecommercePreview.imagesOnly || hasProductImage(product);
+    return matchesSearch && matchesImageFilter;
+  });
 
   const updateTaxRate = (key, value) => {
     setCompany((prev) => ({ ...prev, taxRates: { ...(prev.taxRates || {}), [key]: Number(value || 0) } }));
@@ -239,6 +378,140 @@ const Settings = () => {
             ))}
           </div>
         </div>
+
+          {activeTab === 'ecommerce' && (
+            <div style={{ background: '#fff', padding: 24, borderRadius: 18, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
+              <h3 style={{ marginTop: 0 }}>🛒 E-Ticaret Yönetimi</h3>
+              <p style={{ color: '#6b7280' }}>IdeaSoft bağlantı durumu, kaynak senkronu ve ürün görsel aktarımı burada yönetilir.</p>
+
+              <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 14, background: '#f8fafc' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Bağlantı Durumu</div>
+                  <div style={{ color: '#475569', fontSize: 14 }}>
+                    {ideasoft.loading ? 'Durum kontrol ediliyor...' : ideasoft.status?.connected ? 'IdeaSoft bağlı ve senkrona hazır.' : 'Bağlantı henüz kurulmamış.'}
+                  </div>
+                  {ideasoft.status?.connection?.connectedAt && (
+                    <div style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>
+                      Bağlantı zamanı: {new Date(ideasoft.status.connection.connectedAt).toLocaleString('tr-TR')}
+                    </div>
+                  )}
+                  {ideasoft.status?.callbackUrl && (
+                    <div style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>
+                      Callback: {ideasoft.status.callbackUrl}
+                    </div>
+                  )}
+                  {ideasoft.message && (
+                    <div style={{ color: '#0f172a', fontSize: 13, marginTop: 8, fontWeight: 600 }}>{ideasoft.message}</div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <button type="button" onClick={handleIdeaSoftConnect} style={primaryButtonStyle}>IdeaSoft Bağlantısı Kur</button>
+                  <button type="button" onClick={fetchIdeaSoftStatus} style={tabButtonStyle}>Durumu Yenile</button>
+                  <button type="button" onClick={fetchEcommerceProducts} style={tabButtonStyle}>Ürünleri Yenile</button>
+                </div>
+
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 14, background: '#fff' }}>
+                  <div style={{ fontWeight: 700, marginBottom: 10 }}>Senkron Kaynakları</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                    {ideasoft.status?.config?.resources?.length
+                      ? ideasoft.status.config.resources.map((resource) => {
+                          const isSyncing = ideasoft.syncing && ideasoft.resource === resource;
+                          const labelMap = {
+                            products: 'Ürünler ve resimler',
+                            stock: 'Stok',
+                            prices: 'Fiyatlar',
+                            customers: 'Müşteriler',
+                            orders: 'Siparişler',
+                            invoices: 'Faturalar',
+                            suppliers: 'Tedarikçiler',
+                          };
+                          return (
+                            <button
+                              key={resource}
+                              type="button"
+                              onClick={() => handleIdeaSoftSync(resource)}
+                              disabled={isSyncing || !ideasoft.status?.connected}
+                              style={{
+                                ...tabButtonStyle,
+                                padding: '12px 14px',
+                                textAlign: 'left',
+                                opacity: !ideasoft.status?.connected ? 0.55 : 1,
+                                cursor: isSyncing ? 'wait' : 'pointer',
+                              }}
+                            >
+                              <div style={{ fontWeight: 700 }}>{labelMap[resource] || resource}</div>
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{isSyncing ? 'Senkron yapılıyor...' : 'Şimdi senkronla'}</div>
+                            </button>
+                          );
+                        })
+                      : null}
+                  </div>
+                  <div style={{ marginTop: 10, color: '#64748b', fontSize: 13 }}>
+                    Ürün senkronunda resim URL'leri ve çoklu görseller de sisteme kaydedilir.
+                  </div>
+                </div>
+
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 14, padding: 14, background: '#fff' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>Ürün Önizleme</div>
+                      <div style={{ color: '#64748b', fontSize: 13 }}>
+                        {ecommercePreview.loading ? 'Ürünler yükleniyor...' : `${ecommerceFilteredItems.length} / ${ecommercePreview.items.length} ürün gösteriliyor`}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <input
+                        value={ecommercePreview.search}
+                        onChange={(e) => setEcommercePreview((prev) => ({ ...prev, search: e.target.value }))}
+                        placeholder="Ürün, SKU, barkod ara"
+                        style={{ ...inputStyle, width: 240 }}
+                      />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#334155' }}>
+                        <input
+                          type="checkbox"
+                          checked={ecommercePreview.imagesOnly}
+                          onChange={(e) => setEcommercePreview((prev) => ({ ...prev, imagesOnly: e.target.checked }))}
+                        />
+                        Sadece görseli olanlar
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                    {ecommerceFilteredItems.slice(0, 12).map((product) => {
+                      const image = getProductImage(product);
+                      return (
+                        <div key={product._id || product.id || `${product.sku}-${product.name}`} style={{ border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden', background: '#f8fafc' }}>
+                          <div style={{ aspectRatio: '1 / 1', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            {image ? (
+                              <img src={image} alt={product.name || 'Ürün'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: 13 }}>Görsel yok</span>
+                            )}
+                          </div>
+                          <div style={{ padding: 12, display: 'grid', gap: 6 }}>
+                            <div style={{ fontWeight: 700, color: '#0f172a' }}>{product.name || 'İsimsiz Ürün'}</div>
+                            <div style={{ fontSize: 13, color: '#64748b' }}>{product.sku || '-'}{product.barcode ? ` • ${product.barcode}` : ''}</div>
+                            <div style={{ fontSize: 13, color: '#475569' }}>
+                              Fiyat: {Number(product.salePrice || 0).toLocaleString('tr-TR')} TL
+                            </div>
+                            <div style={{ fontSize: 13, color: '#475569' }}>
+                              Stok: {Number(product.stock || 0)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {!ecommercePreview.loading && ecommerceFilteredItems.length === 0 && (
+                    <div style={{ marginTop: 12, color: '#64748b', fontSize: 13 }}>Bu filtreye uygun ürün bulunamadı.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
         {(activeTab === 'company' || activeTab === 'theme' || activeTab === 'tax' || activeTab === 'print' || activeTab === 'logo') && (
           <div style={{ background: '#fff', padding: 24, borderRadius: 18, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
@@ -380,8 +653,38 @@ const Settings = () => {
         {activeTab === 'users' && (
           <div style={{ background: '#fff', padding: 24, borderRadius: 18, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
             <h3 style={{ marginTop: 0 }}>👥 Kullanıcılar</h3>
+            <div style={{ border: '1px solid #dbe3ef', borderRadius: 12, padding: 16, background: '#f8fafc', marginBottom: 16 }}>
+              <h4 style={{ marginTop: 0 }}>Davet Linki</h4>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} style={inputStyle}>
+                  {roles.map((role) => (<option key={role} value={role}>{role}</option>))}
+                </select>
+                {inviteRole === 'dealer' && (
+                  <select value={inviteCustomerId} onChange={(e) => setInviteCustomerId(e.target.value)} style={inputStyle}>
+                    <option value="">Bayi Müşteri Kaydı Seçin</option>
+                    {customers.map((customer) => (
+                      <option key={customer._id} value={customer._id}>
+                        {(customer.companyName || customer.name || 'Müşteri')} ({customer.customerCode || '-'})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button type="button" onClick={handleGenerateInviteLink} disabled={inviteLoading} style={primaryButtonStyle}>
+                  {inviteLoading ? 'Hazırlanıyor...' : 'Davet Linki Oluştur'}
+                </button>
+                {inviteLink && (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <input value={inviteLink} readOnly style={inputStyle} />
+                    <button type="button" onClick={() => navigator.clipboard.writeText(inviteLink)} style={{ ...primaryButtonStyle, background: 'linear-gradient(135deg, #0f172a 0%, #334155 100%)' }}>
+                      Linki Kopyala
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             <form onSubmit={handleCreateUser} style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
               <input value={newUser.name} onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))} placeholder="Ad Soyad" style={inputStyle} />
+              <input value={newUser.phone} onChange={(e) => setNewUser((prev) => ({ ...prev, phone: e.target.value }))} placeholder="Telefon" style={inputStyle} />
               <input value={newUser.userName} onChange={(e) => setNewUser((prev) => ({ ...prev, userName: e.target.value }))} placeholder="Kullanıcı Adı" style={inputStyle} />
               <input value={newUser.email} onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))} placeholder="E-posta" style={inputStyle} />
               <input value={newUser.password} onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))} placeholder="Şifre (boşsa 123456)" style={inputStyle} />
@@ -411,8 +714,8 @@ const Settings = () => {
                   setSelectedUserRole(found?.role || 'sales');
                 }} style={inputStyle}>
                   {users.map((user) => (
-                    <option key={user._id} value={user._id}>{user.name} ({user.email})</option>
-                  ))}
+                      <option key={user._id} value={user._id}>{user.name} ({user.email}{user.phone ? `, ${user.phone}` : ''})</option>
+                    ))}
                 </select>
                 <select value={selectedUserRole} onChange={(e) => setSelectedUserRole(e.target.value)} style={inputStyle}>
                   {roles.map((role) => (<option key={role} value={role}>{role}</option>))}
@@ -420,6 +723,30 @@ const Settings = () => {
                 <button type="button" onClick={handleUpdateUserRole} style={primaryButtonStyle}>Rolü Güncelle</button>
               </div>
             </div>
+
+              <div style={{ marginTop: 16 }}>
+                <h4 style={{ marginBottom: 10 }}>Personel Listesi</h4>
+                {users.length === 0 ? (
+                  <p style={{ color: '#64748b' }}>Henüz personel yok.</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {users.map((user) => (
+                      <div key={user._id} style={{ border: '1px solid #e2e8f0', borderRadius: 12, padding: 12, background: '#fafafa' }}>
+                        <div style={{ fontWeight: 700 }}>{user.name}</div>
+                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
+                          E-posta: {user.email || '-'}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                          Telefon: {user.phone || '-'}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                          Kullanıcı Adı: {user.userName || '-'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
           </div>
         )}
 
@@ -477,6 +804,7 @@ const switchLabelStyle = {
 
 const tabs = [
   { key: 'company', label: 'Firma Bilgileri' },
+  { key: 'ecommerce', label: 'E-Ticaret' },
   { key: 'users', label: 'Kullanıcılar' },
   { key: 'authorization', label: 'Yetkilendirme' },
   { key: 'roles', label: 'Roller' },
@@ -489,6 +817,7 @@ const tabs = [
 
 const permissionItems = [
   { key: 'customers', label: 'Müşteriler' },
+  { key: 'suppliers', label: 'Tedarikçiler' },
   { key: 'products', label: 'Ürünler' },
   { key: 'sales', label: 'Satış' },
   { key: 'invoices', label: 'Faturalar' },
@@ -503,6 +832,7 @@ const permissionItems = [
 
 const permissionLabels = {
   customers: 'Müşteriler',
+  suppliers: 'Tedarikçiler',
   products: 'Ürünler',
   sales: 'Satış',
   invoices: 'Faturalar',

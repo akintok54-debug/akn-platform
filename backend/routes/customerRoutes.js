@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { verifyToken } = require("../middleware/authMiddleware");
+const { verifyToken, requireModuleAccess } = require("../middleware/authMiddleware");
 
 const {
   createCustomer,
@@ -22,6 +22,7 @@ const {
 } = require("../controllers/customerController");
 
 router.use(verifyToken);
+router.use(requireModuleAccess("customers"));
 
 router.post("/", createCustomer);
 router.get("/", getCustomers);

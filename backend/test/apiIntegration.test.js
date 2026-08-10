@@ -3,6 +3,13 @@ const assert = require("node:assert/strict");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
+const mongoUri = String(process.env.MONGO_URI || "").trim();
+const isValidMongoUri = /^mongodb(\+srv)?:\/\//i.test(mongoUri) && !/your_username|your_password|your_cluster/i.test(mongoUri);
+
+if (!isValidMongoUri) {
+  test("API integration suite skipped because a valid MONGO_URI is not configured", { skip: true }, () => {});
+} else {
+
 const testPort = 5600 + Math.floor(Math.random() * 200);
 process.env.PORT = String(testPort);
 
@@ -10,6 +17,7 @@ const { startServer } = require("../server");
 
 let server;
 let token;
+
 let createdBrandId;
 let createdCustomerId;
 let createdProductId;
@@ -507,3 +515,5 @@ test("Master data brands should support full CRUD", async () => {
   assert.equal(removed.status, 200);
   assert.equal(removed.payload.success, true);
 });
+
+  }

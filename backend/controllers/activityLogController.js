@@ -4,11 +4,21 @@ const { parseListQuery } = require("../utils/queryFeatures");
 const getActivityLogs = async (req, res) => {
   try {
     const companyId = req.user?.company || req.user?.companyId;
-    const { module, action, userId } = req.query;
+    const { module, action, userId, companyId: companyFilter } = req.query;
     const list = parseListQuery(req.query);
 
     const filter = {};
-    if (companyId) filter.companyId = companyId;
+    const isSuperAdmin = req.user?.role === "SUPER_ADMIN";
+
+    if (!isSuperAdmin) {
+      if (!companyId) {
+        return res.status(403).json({ success: false, message: "Sirket baglami olmadan kayitlar listelenemez." });
+      }
+      filter.companyId = companyId;
+    } else if (companyFilter) {
+      filter.companyId = companyFilter;
+    }
+
     if (module) filter.module = String(module).trim();
     if (action) filter.action = String(action).trim();
     if (userId) filter.userId = userId;

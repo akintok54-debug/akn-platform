@@ -9,6 +9,14 @@ const AuditReport = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [filters, setFilters] = useState({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .slice(0, 10),
+    endDate: new Date().toISOString().slice(0, 10),
+    userId: "",
+    module: "",
+  });
 
   const currentUser = useMemo(() => {
     try {
@@ -18,29 +26,7 @@ const AuditReport = () => {
     }
   }, []);
 
-  // Admin kontrolü
-  if (currentUser?.role !== "admin") {
-    return (
-      <div className="report-container">
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <h2>⛔ Yetkisiz Erişim</h2>
-          <p>Bu raporu görüntülemek için admin yetkisi gereklidir.</p>
-          <button onClick={() => navigate("/dashboard")} className="btn-primary">
-            Dashboard'a Dön
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const [filters, setFilters] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
-    userId: "",
-    module: "",
-  });
+  const isAdmin = currentUser?.role === "admin";
 
   const fetchData = async () => {
     setLoading(true);
@@ -67,8 +53,26 @@ const AuditReport = () => {
   };
 
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     fetchData();
   }, []);
+
+  if (!isAdmin) {
+    return (
+      <div className="report-container">
+        <div style={{ textAlign: "center", padding: "40px" }}>
+          <h2>⛔ Yetkisiz Erişim</h2>
+          <p>Bu raporu görüntülemek için admin yetkisi gereklidir.</p>
+          <button onClick={() => navigate("/dashboard")} className="btn-primary">
+            Dashboard'a Dön
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

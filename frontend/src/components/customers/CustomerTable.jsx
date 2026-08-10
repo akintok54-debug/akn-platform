@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CustomerTable = ({ customers, onView, onEdit, onDelete, selectedCustomerIds = [], onSelectCustomer, onSelectAllPage }) => {
+const CustomerTable = ({ customers, onView, onEdit, onDelete, onSale, selectedCustomerIds = [], onSelectCustomer, onSelectAllPage }) => {
   const allSelected = customers.length > 0 && customers.every((customer) => selectedCustomerIds.includes(customer._id || customer.id));
 
   return (
@@ -61,6 +61,7 @@ const CustomerTable = ({ customers, onView, onEdit, onDelete, selectedCustomerId
                 <td style={tdStyle}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button onClick={() => onView(id)} style={actionButton('#2563eb')}>Detay</button>
+                    <button onClick={() => onSale && onSale(customer)} style={actionButton('#16a34a')}>Satış Yap</button>
                     <button onClick={() => onEdit(customer)} style={actionButton('#d97706')}>Düzenle</button>
                     <button onClick={() => onDelete(id)} style={actionButton('#dc2626')}>Sil</button>
                   </div>

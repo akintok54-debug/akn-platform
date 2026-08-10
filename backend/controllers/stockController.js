@@ -12,7 +12,7 @@ const getCompanyId = (req) => req.user?.companyId || req.user?.company || null;
 
 const buildProductFilter = (companyId) => {
   if (companyId && mongoose.Types.ObjectId.isValid(companyId)) {
-    return { $or: [{ company: companyId }, { company: { $exists: false } }, { company: null }] };
+    return { company: companyId };
   }
   return {};
 };
@@ -27,6 +27,9 @@ const buildScopedFilter = (companyId) => {
 exports.getStockOverview = async (req, res) => {
   try {
     const companyId = getCompanyId(req);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
     const products = await Product.find(buildProductFilter(companyId)).sort({ updatedAt: -1 });
     const warehouses = await Warehouse.find(buildScopedFilter(companyId)).sort({ createdAt: -1 });
 
@@ -66,6 +69,9 @@ exports.getStockOverview = async (req, res) => {
 exports.createWarehouse = async (req, res) => {
   try {
     const companyId = getCompanyId(req);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
     const { name, isDefault } = req.body;
 
     const normalizedName = String(name || "").trim();
@@ -99,6 +105,9 @@ exports.createWarehouse = async (req, res) => {
 exports.getWarehouses = async (req, res) => {
   try {
     const companyId = getCompanyId(req);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
     const warehouses = await Warehouse.find(buildScopedFilter(companyId)).sort({ createdAt: -1 });
     res.status(200).json({ success: true, warehouses });
   } catch (error) {
@@ -114,7 +123,11 @@ exports.createStockMovement = async (req, res) => {
     const companyId = getCompanyId(req);
     const { productId, warehouseId, movementType, quantity, countStock, description, movementDate } = req.body;
 
-    const product = await Product.findById(productId).session(session);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      throw new Error("Sirket bilgisi bulunamadi.");
+    }
+
+    const product = await Product.findOne({ _id: productId, company: companyId }).session(session);
     if (!product) {
       throw new Error("Ürün bulunamadı.");
     }
@@ -185,6 +198,9 @@ exports.createStockMovement = async (req, res) => {
 exports.getStockMovements = async (req, res) => {
   try {
     const companyId = getCompanyId(req);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
     const { movementType, productId } = req.query;
 
     const filter = buildScopedFilter(companyId);

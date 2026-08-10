@@ -210,11 +210,11 @@ const InvoiceCreate = () => {
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>AKN PLATFORM</div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>AKN</div>
             <div style={{ color: '#6b7280', fontSize: 12 }}>Vergi No: 1234567890</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, marginBottom: 24 }}>
             <div>
               <div style={{ fontWeight: 600, marginBottom: 8 }}>FATURA ÖDEYECİ</div>
               <div>
@@ -230,7 +230,8 @@ const InvoiceCreate = () => {
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+          <div className="table-scroll" style={{ marginBottom: 24 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0 }}>
             <thead>
               <tr style={{ background: '#f3f4f6', borderBottom: '2px solid #1f2937' }}>
                 <th style={{ padding: 8, textAlign: 'left' }}>Ürün</th>
@@ -264,6 +265,7 @@ const InvoiceCreate = () => {
               })}
             </tbody>
           </table>
+          </div>
 
           <div style={{ textAlign: 'right', marginBottom: 24 }}>
             <div style={{ display: 'inline-block', minWidth: 200 }}>
@@ -346,7 +348,7 @@ const InvoiceCreate = () => {
           }}
         >
           <h3 style={{ margin: '0 0 16px', color: '#1f2937' }}>👤 Müşteri Bilgileri</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                 Satıştan Oluştur (İsteğe Bağlı)
@@ -405,7 +407,7 @@ const InvoiceCreate = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 12 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                 Vade Tarihi
@@ -466,7 +468,7 @@ const InvoiceCreate = () => {
           }}
         >
           <h3 style={{ margin: '0 0 16px', color: '#1f2937' }}>📦 Ürün Ekle</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
             <div>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, marginBottom: 2 }}>
                 Ürün
@@ -609,6 +611,7 @@ const InvoiceCreate = () => {
             }}
           >
             <h3 style={{ margin: '0 0 12px', color: '#1f2937' }}>📋 Fatura Kalemleri</h3>
+            <div className="table-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ background: '#e5e7eb', borderRadius: 4 }}>
@@ -661,11 +664,12 @@ const InvoiceCreate = () => {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
         {/* BUTTONS */}
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => setPreview(true)}
@@ -712,68 +716,6 @@ const InvoiceCreate = () => {
             {loading ? '⏳ Oluşturuluyor...' : '✅ Fatura Oluştur'}
           </button>
         </div>
-      </form>
-    </div>
-  );
-};
-
-export default InvoiceCreate;
-      </div>
-
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12, background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #e5e7eb' }}>
-        <label>
-          Müşteri
-          <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }} required>
-            <option value="">Seçiniz</option>
-            {customers.map((customer) => (
-              <option key={customer._id || customer.id} value={customer._id || customer.id}>{customer.companyName || customer.name}</option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Fatura Türü
-          <select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value)} style={{ width: '100%', padding: 8, marginTop: 4 }}>
-            <option value="E_FATURA">E-Fatura</option>
-            <option value="E_ARSIV">E-Arşiv</option>
-          </select>
-        </label>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: 8 }}>
-          <select value={selectedProductId} onChange={(e) => setSelectedProductId(e.target.value)} style={{ padding: 8 }}>
-            <option value="">Ürün seç</option>
-            {products.map((product) => (
-              <option key={product._id || product.id} value={product._id || product.id}>{product.name}</option>
-            ))}
-          </select>
-          <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} style={{ padding: 8 }} />
-          <input type="number" min="0" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} style={{ padding: 8 }} />
-          <button type="button" onClick={addItem} style={{ padding: '8px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Ekle</button>
-        </div>
-
-        <div style={{ marginTop: 8 }}>
-          {items.length === 0 ? <p>Henüz kalem eklenmedi.</p> : (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {items.map((item, index) => (
-                <div key={`${item.productId}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e5e7eb', padding: 10, borderRadius: 8 }}>
-                  <div>
-                    <strong>{item.name}</strong>
-                    <div style={{ fontSize: 13, color: '#6b7280' }}>{item.quantity} x {item.unitPrice} TL</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>{item.totalPrice} TL</span>
-                    <button type="button" onClick={() => removeItem(index)} style={{ padding: '4px 8px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>Sil</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ fontSize: 20, fontWeight: 700, textAlign: 'right' }}>Toplam: {total} TL</div>
-        <button type="submit" disabled={loading || items.length === 0} style={{ padding: '10px 14px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
-          {loading ? 'Oluşturuluyor...' : 'Faturayı Oluştur'}
-        </button>
       </form>
     </div>
   );

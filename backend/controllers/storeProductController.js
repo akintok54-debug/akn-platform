@@ -1,11 +1,15 @@
 const StoreProduct = require("../models/StoreProduct");
 const Product = require("../models/Product");
+const { getCompanyId } = require("../utils/tenantScope");
 
 // 1. Tamircinin Dükkanına Yeni Ürün / Stok Eklemesi
 exports.addStoreProduct = async (req, res) => {
   try {
     const { storeId, productId, salePrice, stock, barcode, shelfLocation } = req.body;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     // Ürün daha önce bu dükkana eklenmiş mi kontrol et
     let storeProduct = await StoreProduct.findOne({ storeId, productId, companyId });
@@ -51,7 +55,10 @@ exports.addStoreProduct = async (req, res) => {
 exports.getStoreProducts = async (req, res) => {
   try {
     const { storeId } = req.params;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     const products = await StoreProduct.find({ storeId, companyId })
       .populate("productId", "name brand category image")
@@ -68,7 +75,10 @@ exports.updateStoreProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const { salePrice, stock, shelfLocation, barcode } = req.body;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     const storeProduct = await StoreProduct.findOne({ _id: id, companyId });
     if (!storeProduct) {
@@ -91,7 +101,10 @@ exports.updateStoreProduct = async (req, res) => {
 exports.deleteStoreProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyId = req.user.companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     const storeProduct = await StoreProduct.findOneAndDelete({ _id: id, companyId });
     if (!storeProduct) {

@@ -47,6 +47,22 @@ const ProductSchema = new mongoose.Schema(
       default: 0,
     },
 
+    purchasePriceUnit: {
+      type: Number,
+      default: 0,
+    },
+
+    purchasePriceBox: {
+      type: Number,
+      default: 0,
+    },
+
+    purchasePriceMode: {
+      type: String,
+      enum: ["adet", "koli"],
+      default: "adet",
+    },
+
     salePrice: {
       type: Number,
       default: 0,

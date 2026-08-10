@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const { getCompanyId } = require("../utils/tenantScope");
 
 const ADMIN_ROLES = new Set(["owner", "admin", "manager"]);
 const VALID_STATUSES = new Set(["GELEN_SIPARISLER", "HAZIRLANIYOR", "KARGODA", "TESLIM_EDILDI"]);
@@ -19,12 +20,13 @@ const getProductPrices = (product) => {
 exports.searchOrderProducts = async (req, res) => {
   try {
     const search = String(req.query.search || "").trim();
-    const companyId = req.user?.company;
+    const companyId = getCompanyId(req);
 
-    const query = {};
-    if (companyId && mongoose.Types.ObjectId.isValid(companyId)) {
-      query.$or = [{ company: companyId }, { company: { $exists: false } }, { company: null }];
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
     }
+
+    const query = { company: companyId };
 
     if (search) {
       query.$and = [
@@ -68,7 +70,12 @@ exports.createOrder = async (req, res) => {
 
   try {
     const { items, customerName, notes } = req.body;
-    const companyId = req.user?.company;
+    const companyId = getCompanyId(req);
+
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
+    }
 
     if (!Array.isArray(items) || items.length === 0) {
       await session.abortTransaction();
@@ -83,7 +90,7 @@ exports.createOrder = async (req, res) => {
       const quantity = Math.max(1, parseInt(item.quantity, 10) || 1);
       const selectedPriceType = item.selectedPriceType === "BAYI" ? "BAYI" : "PERAKENDE";
 
-      const product = await Product.findById(productId).session(session);
+      const product = await Product.findOne({ _id: productId, company: companyId }).session(session);
       if (!product) {
         throw new Error("Ürün bulunamadı.");
       }
@@ -118,6 +125,7 @@ exports.createOrder = async (req, res) => {
       [
         {
           companyId: companyId && mongoose.Types.ObjectId.isValid(companyId) ? companyId : undefined,
+          
           createdBy: req.user?.id,
           customerName: String(customerName || req.user?.name || "Müşteri").trim() || "Müşteri",
           items: orderItems,
@@ -141,14 +149,15 @@ exports.createOrder = async (req, res) => {
 
 exports.getOrders = async (req, res) => {
   try {
-    const companyId = req.user?.company;
+    const companyId = getCompanyId(req);
     const role = req.user?.role;
     const status = String(req.query.status || "").trim();
 
-    const query = {};
-    if (companyId && mongoose.Types.ObjectId.isValid(companyId)) {
-      query.companyId = companyId;
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
     }
+
+    const query = { companyId };
 
     if (status && VALID_STATUSES.has(status)) {
       query.status = status;
@@ -182,11 +191,11 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: "Geçersiz sipariş durumu." });
     }
 
-    const companyId = req.user?.company;
-    const query = { _id: id };
-    if (companyId && mongoose.Types.ObjectId.isValid(companyId)) {
-      query.companyId = companyId;
+    const companyId = getCompanyId(req);
+    if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+      return res.status(400).json({ success: false, message: "Sirket bilgisi bulunamadi." });
     }
+    const query = { _id: id, companyId };
 
     const updated = await Order.findOneAndUpdate(query, { status }, { new: true });
 
